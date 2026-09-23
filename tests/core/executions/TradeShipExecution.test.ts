@@ -8,6 +8,7 @@ import {
   Unit,
   UnitType,
 } from "../../../src/core/game/Game";
+import { Ideology } from "../../../src/core/game/Ideology";
 import { PathStatus } from "../../../src/core/pathfinding/types";
 import {
   BOAT_INDEX_CAPTURE,
@@ -48,6 +49,11 @@ describe("TradeShipExecution", () => {
       id: vi.fn(() => 1),
       clientID: vi.fn(() => 1),
       canTrade: vi.fn(() => true),
+      // Government accessors: Config's gold formulas read these.
+      isLobbyCreator: vi.fn(() => false),
+      isNuclearPariah: vi.fn(() => false),
+      ideology: vi.fn(() => Ideology.Capitalism),
+      ideologyTransitionRemainingTicks: vi.fn(() => 0),
     } as any;
 
     dstOwner = {
@@ -60,6 +66,11 @@ describe("TradeShipExecution", () => {
       unitCount: vi.fn(() => 1),
       clientID: vi.fn(() => 2),
       canTrade: vi.fn(() => true),
+      // Government accessors: Config's gold formulas read these.
+      isLobbyCreator: vi.fn(() => false),
+      isNuclearPariah: vi.fn(() => false),
+      ideology: vi.fn(() => Ideology.Capitalism),
+      ideologyTransitionRemainingTicks: vi.fn(() => 0),
     } as any;
 
     pirate = {
@@ -72,6 +83,11 @@ describe("TradeShipExecution", () => {
       units: vi.fn(() => [piratePort, piratePort2]),
       unitCount: vi.fn(() => 2),
       canTrade: vi.fn(() => true),
+      // Government accessors: Config's gold formulas read these.
+      isLobbyCreator: vi.fn(() => false),
+      isNuclearPariah: vi.fn(() => false),
+      ideology: vi.fn(() => Ideology.Capitalism),
+      ideologyTransitionRemainingTicks: vi.fn(() => 0),
     } as any;
 
     piratePort = {

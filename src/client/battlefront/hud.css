@@ -1,0 +1,220 @@
+/**
+ * Battlefront in-battle chrome.
+ *
+ * The map is the game; the HUD is the console you run it from. So the panels
+ * stop being floating rounded cards and become one flat, squared-off
+ * instrument surface: charcoal fills, hairline rules, uppercase tracked
+ * labels, tabular figures, and amber reserved for what you command.
+ *
+ * Most HUD components render into the light DOM, so these rules reach them
+ * without touching each component's own markup.
+ */
+
+/* ── The instrument surface ────────────────────────────────────────────── */
+
+/* Kill the stock rounded translucent cards wherever they appear in-game. */
+.in-game control-panel,
+.in-game unit-display,
+.in-game attacks-display,
+.in-game events-display,
+.in-game actionable-events,
+.in-game chat-display,
+.in-game game-left-sidebar,
+.in-game game-right-sidebar {
+  --tw-backdrop-blur: none;
+}
+
+.in-game control-panel,
+.in-game unit-display {
+  display: block;
+  background: linear-gradient(180deg, #151a23 0%, #10141b 100%);
+  color: var(--bf-text);
+}
+
+/* The control panel and unit strip share one enclosure. */
+.in-game control-panel {
+  border-top: 1px solid var(--bf-amber-dim);
+  border-left: 1px solid var(--bf-line);
+  border-right: 1px solid var(--bf-line);
+  box-shadow: 0 -1px 0 rgba(240, 169, 43, 0.25);
+}
+.in-game unit-display {
+  border: 1px solid var(--bf-line);
+  border-top: 0;
+}
+
+/* Square everything off: consoles do not have rounded corners. */
+.in-game .rounded,
+.in-game .rounded-md,
+.in-game .rounded-lg,
+.in-game .rounded-xl,
+.in-game .rounded-t-lg,
+.in-game .rounded-tr-lg {
+  border-radius: 0 !important;
+}
+
+/* The stock gray panel fill, restated in console charcoal. */
+.in-game .bg-gray-800\/92,
+.in-game .bg-gray-800\/80,
+.in-game .bg-gray-900\/80,
+.in-game .bg-black\/60,
+.in-game .bg-black\/70 {
+  background-color: rgba(16, 20, 27, 0.94) !important;
+}
+
+/* ── Typography ────────────────────────────────────────────────────────── */
+
+/* Readouts are instruments: fixed-width figures so they stop jittering. */
+.in-game control-panel .tabular-nums,
+.in-game control-panel span,
+.in-game game-left-sidebar td,
+.in-game game-left-sidebar th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Intelligence board (leaderboard) ──────────────────────────────────── */
+
+.in-game game-left-sidebar table {
+  border-collapse: collapse;
+}
+.in-game game-left-sidebar th {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6rem !important;
+  color: var(--bf-text-faint) !important;
+  border-bottom: 1px solid var(--bf-line) !important;
+  background: #10141b !important;
+}
+.in-game game-left-sidebar td {
+  border-bottom: 1px solid rgba(43, 51, 66, 0.55) !important;
+}
+/* Your own row: the one line on the board that is about you. */
+.in-game game-left-sidebar tr.bg-gray-600\/40,
+.in-game game-left-sidebar tr[class*="bg-gray-6"] {
+  background: rgba(240, 169, 43, 0.1) !important;
+  box-shadow: inset 2px 0 0 var(--bf-amber);
+}
+
+/* ── Dispatches (event feed) ───────────────────────────────────────────── */
+
+.in-game events-display .flex,
+.in-game actionable-events .flex {
+  border-radius: 0 !important;
+}
+/* A left rule per dispatch, so the feed scans as a log rather than chips. */
+.in-game events-display [class*="border-l"],
+.in-game actionable-events [class*="border-l"] {
+  border-left-width: 3px !important;
+}
+
+/* ── Build console ─────────────────────────────────────────────────────── */
+
+.in-game build-menu {
+  --bf-build-bg: #10141b;
+}
+
+/* ── Command bar ───────────────────────────────────────────────────────── */
+
+battlefront-command-bar {
+  display: block;
+}
+.bf-cmd {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 20, 27, 0.96) 0%,
+    rgba(11, 14, 19, 0.96) 100%
+  );
+  border-bottom: 1px solid var(--bf-line);
+  box-shadow: 0 1px 0 rgba(240, 169, 43, 0.18);
+}
+.bf-cmd-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border-right: 1px solid var(--bf-line);
+  min-width: 0;
+}
+.bf-cmd-cell:last-child {
+  border-right: 0;
+}
+.bf-cmd-k {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: var(--bf-text-faint);
+  line-height: 1.2;
+}
+.bf-cmd-v {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--bf-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bf-cmd-v[data-tone="amber"] {
+  color: var(--bf-amber);
+}
+.bf-cmd-v[data-tone="red"] {
+  color: var(--bf-red);
+}
+.bf-cmd-v[data-tone="steel"] {
+  color: var(--bf-steel);
+}
+
+/* A thin progress rule under a readout (research, troop capacity). */
+.bf-meter {
+  height: 2px;
+  background: var(--bf-line);
+  margin-top: 3px;
+}
+.bf-meter > i {
+  display: block;
+  height: 100%;
+  background: var(--bf-amber);
+}
+.bf-meter[data-tone="steel"] > i {
+  background: var(--bf-steel);
+}
+
+/* The sanctions strip: the loudest thing on screen while it is up. */
+.bf-sanction {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(217, 67, 63, 0.22) 0 10px,
+    rgba(217, 67, 63, 0.1) 10px 20px
+  );
+  border-bottom: 1px solid var(--bf-red);
+  color: #ffd9d7;
+}
+
+/* ── Clearing the command bar ──────────────────────────────────────────── */
+
+/*
+ * The bar owns the top edge of the screen, so every panel that used to sit
+ * at top:0 is pushed below it. Done here rather than in each component so
+ * the offset is defined once, next to the bar itself.
+ */
+:root {
+  --bf-cmd-h: 2.75rem; /* matches .bf-cmd's h-11 row */
+}
+
+/* The left board positions itself with `fixed top-0`, so override the offset
+   rather than adding a margin it would ignore. */
+.in-game game-left-sidebar aside {
+  top: calc(var(--bf-cmd-h) + env(safe-area-inset-top)) !important;
+  max-height: calc(100vh - var(--bf-cmd-h) - 80px) !important;
+}
+
+.in-game game-right-sidebar {
+  margin-top: 0;
+}
+
+/* The right cluster is positioned by its wrapper, so shift that instead. */
+.in-game .bf-top-right {
+  top: calc(var(--bf-cmd-h) + env(safe-area-inset-top));
+}

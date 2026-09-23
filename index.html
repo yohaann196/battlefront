@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title data-i18n="main.title">OpenFront (ALPHA)</title>
+    <title data-i18n="battlefront.title">Battlefront</title>
     <link rel="manifest" href="<%- manifestHref %>" />
     <link rel="icon" type="image/svg+xml" href="<%- faviconHref %>" />
 
@@ -120,18 +120,18 @@
     </style>
 
     <!-- SEO -->
-    <link rel="canonical" href="https://openfront.io/" />
+
     <meta
       name="description"
-      content="Conquer the world in this multiplayer battle royale! Expand your nation, eliminate opponents, and dominate the map in this fast-paced IO game."
+      content="Battlefront is a singleplayer strategy game: command a nation through historical theatres, choose an economic doctrine, research your way to victory, and out-think the AI."
     />
 
     <!-- Open Graph -->
-    <meta property="og:url" content="https://openfront.io/" />
-    <meta property="og:title" content="OpenFront - Battle Royale" />
+
+    <meta property="og:title" content="Battlefront — Singleplayer Strategy" />
     <meta
       property="og:description"
-      content="Conquer the world in this multiplayer battle royale! Expand your nation, eliminate opponents, and dominate the map in this fast-paced IO game."
+      content="Battlefront is a singleplayer strategy game: command a nation through historical theatres, choose an economic doctrine, research your way to victory, and out-think the AI."
     />
     <meta property="og:image" content="<%- gameplayScreenshotUrl %>" />
     <meta property="og:type" content="game" />
@@ -277,13 +277,6 @@
       aria-hidden="true"
     ></div>
 
-    <mobile-nav-bar
-      id="sidebar-menu"
-      class="peer [.in-game_&]:hidden z-[40001] fixed left-0 top-0 h-full flex flex-col justify-start overflow-visible bg-black/70 backdrop-blur-xl border-r border-white/10 transition-transform duration-500 ease-out transform -translate-x-full w-[70%] [&.open]:translate-x-0 lg:hidden"
-      role="dialog"
-      data-i18n-aria-label="main.menu"
-    ></mobile-nav-bar>
-
     <!-- MAIN CONTENT AREA -->
     <div
       class="in-[.in-game]:hidden flex-1 basis-full min-w-0 min-h-dvh in-[.page-open]:min-h-0 in-[.page-open]:overflow-hidden relative pt-[var(--top-ad-pad,0px)] in-[.page-open]:pt-[var(--top-ad-height,0px)] transition-[margin] duration-500 ease-out will-change-[margin-left] flex flex-col"
@@ -292,89 +285,33 @@
            offset below the header ad when one is showing; static while an
            inline page is open, when the content area is padded below the ad
            instead and nothing scrolls) -->
-      <desktop-nav-bar
-        class="sticky top-[var(--top-ad-height,0px)] z-[60] in-[.page-open]:static"
-      ></desktop-nav-bar>
+      <battlefront-nav
+        class="sticky top-0 z-[60] in-[.page-open]:static"
+      ></battlefront-nav>
 
       <div
         id="turnstile-container"
         class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-99999"
       ></div>
 
-      <homepage-promos></homepage-promos>
-      <banned-modal></banned-modal>
-      <marketing-consent-toast></marketing-consent-toast>
-      <purchase-nudge-modal></purchase-nudge-modal>
-
       <!-- Main container with responsive padding -->
       <main-layout class="contents">
-        <play-page class="contents"></play-page>
-        <matchmaking-modal
-          id="page-matchmaking"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></matchmaking-modal>
-        <news-modal
-          id="page-news"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></news-modal>
+        <battlefront-home id="page-play" class="contents"></battlefront-home>
         <single-player-modal
           id="page-single-player"
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></single-player-modal>
-        <host-lobby-modal
-          id="page-host-lobby"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></host-lobby-modal>
-        <join-lobby-modal
-          id="page-join-lobby"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></join-lobby-modal>
-        <store-modal
-          id="page-item-store"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></store-modal>
         <user-setting
           id="page-settings"
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></user-setting>
-        <leaderboard-modal
-          id="page-leaderboard"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></leaderboard-modal>
         <troubleshooting-modal
           id="page-troubleshooting"
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></troubleshooting-modal>
-
-        <clan-modal
-          id="page-clan"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></clan-modal>
-        <account-modal
-          id="page-account"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></account-modal>
-        <game-stats-modal
-          id="page-stats"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></game-stats-modal>
-        <player-profile-modal
-          id="page-profile"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></player-profile-modal>
         <help-modal
           id="page-help"
           inline
@@ -385,21 +322,6 @@
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></language-modal>
-        <inventory-modal
-          id="page-inventory"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></inventory-modal>
-        <ranked-modal
-          id="page-ranked"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></ranked-modal>
-        <detailed-view-modal
-          id="page-detailed-view"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></detailed-view-modal>
       </main-layout>
 
       <div class="[.in-game_&]:hidden mt-auto flex flex-col shrink-0">
@@ -407,16 +329,19 @@
       </div>
 
       <!-- Global Modals -->
-      <steam-link-modal></steam-link-modal>
-      <steam-handoff-modal></steam-handoff-modal>
       <!-- Opened from the nav profile menu (#modal=...) -->
-      <account-settings-modal></account-settings-modal>
-      <change-username-modal></change-username-modal>
-      <subscription-modal></subscription-modal>
     </div>
 
     <!-- Game components -->
     <div id="app"></div>
+
+    <!-- Top command bar: only rendered during a battle. -->
+    <div
+      class="hidden [.in-game_&]:block fixed top-0 left-0 w-full z-[210] pointer-events-none"
+      style="padding-top: env(safe-area-inset-top)"
+    >
+      <battlefront-command-bar></battlefront-command-bar>
+    </div>
 
     <!-- Bottom HUD: <sm=column, sm..lg=2col (HUD left | events right), lg+=3col grid centered -->
     <div
@@ -465,13 +390,14 @@
     <emoji-table></emoji-table>
     <build-menu></build-menu>
     <win-modal></win-modal>
-    <new-lobby-prompt></new-lobby-prompt>
-    <game-starting-modal></game-starting-modal>
-    <div class="flex flex-col items-end fixed top-0 right-0 z-1000 gap-2">
+    <div
+      class="bf-top-right flex flex-col items-end fixed top-0 right-0 z-1000 gap-2"
+    >
       <game-right-sidebar></game-right-sidebar>
       <replay-panel></replay-panel>
     </div>
     <settings-modal></settings-modal>
+    <government-panel></government-panel>
     <!-- The in-game settings modal: the same component as #page-settings, but
          non-inline, and mounted out here because the page's copy sits in a
          subtree that is hidden during a match. It must stay AFTER
@@ -480,11 +406,10 @@
          document.querySelector("user-setting"), which takes the first match. -->
     <user-setting id="game-settings"></user-setting>
     <player-panel></player-panel>
-    <spawn-timer></spawn-timer>
     <immunity-timer></immunity-timer>
-    <in-game-promo></in-game-promo>
     <alert-frame></alert-frame>
     <chat-modal></chat-modal>
+    <game-starting-modal></game-starting-modal>
     <multi-tab-modal></multi-tab-modal>
     <game-left-sidebar></game-left-sidebar>
     <performance-overlay></performance-overlay>
@@ -495,13 +420,11 @@
          home container) so the Twitch iframe is never display:none'd during a game,
          which would unmount the player and break ToS-compliant playback. The
          component is position:fixed and self-manages visibility (pauses in-game). -->
-    <featured-stream></featured-stream>
 
     <!-- Steam shell status bar. A direct <body> child, like
          featured-stream above, so it is not inside the home container -- but
          unlike it, deliberately hidden in-game (see the component's comment).
          Renders nothing outside the desktop shell. -->
-    <desktop-status-bar></desktop-status-bar>
 
     <!-- Scripts -->
     <script>

@@ -153,6 +153,13 @@ export class GameImpl implements Game {
   }
 
   private populateTeams() {
+    // A scenario names its own blocs (Axis/Allies/Neutral), and every player
+    // already carries the one they belong to.
+    const scenarioTeams = this._config.scenario()?.teams;
+    if (scenarioTeams !== undefined) {
+      this.playerTeams = [...scenarioTeams];
+      return;
+    }
     const totalPlayers = this._humans.length + this._nations.length;
     this.playerTeams = resolveTeamsList(
       this._config.playerTeams(),
@@ -164,6 +171,18 @@ export class GameImpl implements Game {
     if (this.config().gameConfig().gameMode === GameMode.FFA) {
       this._humans.forEach((p) => this.addPlayer(p));
       this._nations.forEach((n) => this.addPlayer(n.playerInfo));
+      return;
+    }
+
+    // Scenario blocs are historical, not balanced: seat everyone on the side
+    // their faction actually fought for.
+    const scenario = this._config.scenario();
+    if (scenario?.teams !== undefined) {
+      const fallback = scenario.neutralTeam ?? scenario.teams[0];
+      const seat = (info: PlayerInfo) =>
+        this.addPlayer(info, info.preset?.team ?? fallback);
+      this._humans.forEach(seat);
+      this._nations.forEach((n) => seat(n.playerInfo));
       return;
     }
 

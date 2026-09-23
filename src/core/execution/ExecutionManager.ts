@@ -22,6 +22,7 @@ import { NoOpExecution } from "./NoOpExecution";
 import { PauseExecution } from "./PauseExecution";
 import { QuickChatExecution } from "./QuickChatExecution";
 import { RetreatExecution } from "./RetreatExecution";
+import { SetIdeologyExecution } from "./SetIdeologyExecution";
 import { SpawnExecution } from "./SpawnExecution";
 import { TargetPlayerExecution } from "./TargetPlayerExecution";
 import { TransportShipExecution } from "./TransportShipExecution";
@@ -116,6 +117,8 @@ export class Executor {
         return new AllianceExtensionExecution(player, intent.recipient);
       }
 
+      case "set_ideology":
+        return new SetIdeologyExecution(player, intent.ideology);
       case "upgrade_structure":
         return new UpgradeStructureExecution(
           player,

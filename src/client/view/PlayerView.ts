@@ -27,6 +27,7 @@ import {
   AttackUpdate,
   PlayerUpdate,
 } from "../../core/game/GameUpdates";
+import { DEFAULT_IDEOLOGY, Ideology } from "../../core/game/Ideology";
 import { UserSettings } from "../../core/game/UserSettings";
 import { PlayerState, PlayerStatic, PlayerTypeEnum } from "../render/types";
 import { themeProvider } from "../theme/ThemeProvider";
@@ -89,6 +90,16 @@ function stateFromUpdate(pu: PlayerUpdate): PlayerState {
     troops: pu.troops!,
     isTraitor: pu.isTraitor!,
     traitorRemainingTicks: Math.max(0, pu.traitorRemainingTicks ?? 0),
+    ideology: pu.ideology ?? DEFAULT_IDEOLOGY,
+    ideologyTransitionRemainingTicks: Math.max(
+      0,
+      pu.ideologyTransitionRemainingTicks ?? 0,
+    ),
+    hasChosenIdeology: pu.hasChosenIdeology ?? false,
+    researchPoints: pu.researchPoints ?? 0,
+    researchLevel: pu.researchLevel ?? 0,
+    researchLabLevels: pu.researchLabLevels ?? 0,
+    nukePenaltyRemainingTicks: Math.max(0, pu.nukePenaltyRemainingTicks ?? 0),
     inDoomsdayClock: pu.inDoomsdayClock ?? false,
     isDecaying: pu.isDecaying ?? false,
     markedDoomsdayClockTick: pu.markedDoomsdayClockTick ?? -1,
@@ -675,6 +686,30 @@ export class PlayerView {
   }
   getTraitorRemainingTicks(): number {
     return this.state.traitorRemainingTicks;
+  }
+  ideology(): Ideology {
+    return this.state.ideology;
+  }
+  ideologyTransitionRemainingTicks(): number {
+    return this.state.ideologyTransitionRemainingTicks;
+  }
+  hasChosenIdeology(): boolean {
+    return this.state.hasChosenIdeology;
+  }
+  researchPoints(): number {
+    return this.state.researchPoints;
+  }
+  researchLevel(): number {
+    return this.state.researchLevel;
+  }
+  researchLabLevels(): number {
+    return this.state.researchLabLevels;
+  }
+  nukePenaltyRemainingTicks(): number {
+    return this.state.nukePenaltyRemainingTicks;
+  }
+  isNuclearPariah(): boolean {
+    return this.state.nukePenaltyRemainingTicks > 0;
   }
   inDoomsdayClock(): boolean {
     return this.state.inDoomsdayClock;

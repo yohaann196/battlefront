@@ -8,7 +8,6 @@ import {
   PlayerID,
   PlayerType,
   Relation,
-  TerrainType,
   UnitType,
 } from "../game/Game";
 import { TileRef } from "../game/GameMap";
@@ -22,6 +21,7 @@ import { NationNukeBehavior } from "./nation/NationNukeBehavior";
 import { NationStructureBehavior } from "./nation/NationStructureBehavior";
 import { NationWarshipBehavior } from "./nation/NationWarshipBehavior";
 import { SpawnExecution } from "./SpawnExecution";
+import { findLandSpawnNear } from "./Util";
 import { AiAttackBehavior } from "./utils/AiAttackBehavior";
 
 export class NationExecution implements Execution {
@@ -262,33 +262,7 @@ export class NationExecution implements Execution {
 
   private randomSpawnLand(): TileRef | null {
     if (this.nation.spawnCell === undefined) throw new Error("not initialized");
-
-    const delta = 25;
-    let tries = 0;
-    while (tries < 50) {
-      tries++;
-      const cell = this.nation.spawnCell;
-      const x = this.random.nextInt(cell.x - delta, cell.x + delta);
-      const y = this.random.nextInt(cell.y - delta, cell.y + delta);
-      if (!this.mg.isValidCoord(x, y)) {
-        continue;
-      }
-      const tile = this.mg.ref(x, y);
-      if (
-        this.mg.isLand(tile) &&
-        !this.mg.hasOwner(tile) &&
-        !this.mg.isImpassable(tile)
-      ) {
-        if (
-          this.mg.terrainType(tile) === TerrainType.Mountain &&
-          this.random.chance(2)
-        ) {
-          continue;
-        }
-        return tile;
-      }
-    }
-    return null;
+    return findLandSpawnNear(this.mg, this.nation.spawnCell, this.random);
   }
 
   private updateRelationsFromEmbargos() {

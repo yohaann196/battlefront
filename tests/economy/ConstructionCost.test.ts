@@ -58,9 +58,10 @@ describe("Structure cost while under construction", () => {
 
   test("first city under construction does not double-count itself", () => {
     buildFirstCityUnderConstruction();
-    // One built city (under construction) → next city is the 2nd → 250k.
+    // One built city (under construction) → next city is the 2nd → 250k
+    // base, x0.85 for a Capitalist government.
     expect(player.unitsConstructed(UnitType.City)).toBe(1);
-    expect(game.unitInfo(UnitType.City).cost(game, player)).toBe(250_000n);
+    expect(game.unitInfo(UnitType.City).cost(game, player)).toBe(212_500n);
   });
 
   test("captured city does not inflate the price of a city under construction", () => {
@@ -71,8 +72,9 @@ describe("Structure cost while under construction", () => {
     buildFirstCityUnderConstruction();
 
     // Player has BUILT exactly one city (still under construction). The captured
-    // city must not count toward build cost, so the next city is still 250k.
+    // city must not count toward build cost, so the next city is still the
+    // 2nd (250k base, x0.85 for a Capitalist government).
     expect(player.unitsConstructed(UnitType.City)).toBe(1);
-    expect(game.unitInfo(UnitType.City).cost(game, player)).toBe(250_000n);
+    expect(game.unitInfo(UnitType.City).cost(game, player)).toBe(212_500n);
   });
 });

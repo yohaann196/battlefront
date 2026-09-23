@@ -694,7 +694,13 @@ export function getMessageTypeClasses(type: MessageType): string {
       return severityColors["warn"];
     case MessageType.CHAT:
     case MessageType.ALLIANCE_REQUEST:
+    case MessageType.RESEARCH_UNLOCKED:
+    case MessageType.IDEOLOGY_CHANGED:
       return severityColors["info"];
+    // Sanctions are bad news for whoever reads them: the launcher is being
+    // punished, and everyone else has a nuclear power on their border.
+    case MessageType.NUKE_SANCTIONS:
+      return severityColors["fail"];
     default:
       console.warn(`Message type ${type} has no explicit color`);
       return severityColors["white"];

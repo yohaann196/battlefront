@@ -60,6 +60,17 @@ function getStructureRatios(
       ratioPerCity: 0.2,
       perceivedCostIncreasePerOwned: 1,
     },
+    // Research labs are the gateway to everything above doctrine, so nations
+    // keep a steady share of them rather than treating them as a luxury.
+    [UnitType.ResearchLab]: {
+      ratioPerCity: 0.4,
+      perceivedCostIncreasePerOwned: 1,
+    },
+    // Barracks are cheap troop ceiling; a nation wants a lot of them.
+    [UnitType.Barracks]: {
+      ratioPerCity: 0.6,
+      perceivedCostIncreasePerOwned: 0.8,
+    },
   };
 }
 
@@ -162,11 +173,22 @@ export class NationStructureBehavior {
       if (this.tryBuildDefensePost()) {
         return true;
       }
+      // A fortress is the permanent version of the same answer: worth it
+      // for a nation that can afford to hold ground rather than patch it.
+      if (this.tryBuildFortress()) {
+        return true;
+      }
       // If the attack threshold is met, block other structures even when
       // placement failed (no tile found / can't afford).
       if (this.defensePostNeeded()) {
         return false;
       }
+    }
+
+    // Artillery supports an offensive, so it is considered whenever the
+    // nation is actually pushing into someone.
+    if (this.placementsCount > 0 && this.tryBuildArtillery()) {
+      return true;
     }
 
     if (this.isOnStructureCooldown()) {
@@ -231,6 +253,87 @@ export class NationStructureBehavior {
       if (!player.canBuild(UnitType.DefensePost, tile)) continue;
       this.game.addExecution(
         new ConstructionExecution(player, UnitType.DefensePost, tile),
+      );
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Builds a fortress on a threatened border.
+   *
+   * Only the tougher nations do this: a fortress is several times the price
+   * of a defense post, so it is an investment a nation makes when it intends
+   * to hold a line rather than trade land.
+   */
+  private tryBuildFortress(): boolean {
+    const config = this.game.config();
+    const { difficulty } = config.gameConfig();
+    if (
+      difficulty !== Difficulty.Hard &&
+      difficulty !== Difficulty.Impossible
+    ) {
+      return false;
+    }
+    if (config.isUnitDisabled(UnitType.Fortress)) return false;
+
+    const player = this.player;
+    const landAttacks = player
+      .incomingAttacks()
+      .filter((a) => a.sourceTile() === null);
+    if (landAttacks.length === 0) return false;
+
+    const ourTroops = player.troops();
+    if (ourTroops <= 0) return false;
+    const incomingTroops = landAttacks.reduce((sum, a) => sum + a.troops(), 0);
+    if (incomingTroops / ourTroops < UNDER_ATTACK_THREAT_RATIO) return false;
+
+    // One fortress per few cities: they are anchors, not a wall.
+    const cityCount = this.cityEquivalentCount();
+    if (player.unitCount(UnitType.Fortress) >= Math.ceil(cityCount * 0.15)) {
+      return false;
+    }
+    if (player.gold() < this.cost(UnitType.Fortress)) return false;
+
+    return this.buildNearFront(landAttacks, UnitType.Fortress);
+  }
+
+  /**
+   * Builds artillery behind an attack the nation is currently pressing, so
+   * the supporting fire actually covers the ground being taken.
+   */
+  private tryBuildArtillery(): boolean {
+    const config = this.game.config();
+    const { difficulty } = config.gameConfig();
+    if (difficulty === Difficulty.Easy) return false;
+    if (config.isUnitDisabled(UnitType.Artillery)) return false;
+
+    const player = this.player;
+    const attacks = player
+      .outgoingAttacks()
+      .filter((a) => a.sourceTile() === null);
+    if (attacks.length === 0) return false;
+
+    const cityCount = this.cityEquivalentCount();
+    if (player.unitCount(UnitType.Artillery) >= Math.ceil(cityCount * 0.2)) {
+      return false;
+    }
+    if (player.gold() < this.cost(UnitType.Artillery)) return false;
+
+    return this.buildNearFront(attacks, UnitType.Artillery);
+  }
+
+  /** Places `type` on the best available tile along the given attack front. */
+  private buildNearFront(
+    attacks: ReturnType<Player["incomingAttacks"]>,
+    type: UnitType,
+  ): boolean {
+    const frontTiles = this.getAttackFrontTiles(attacks);
+    if (frontTiles.length === 0) return false;
+    for (const tile of this.sampleTilesNearFront(frontTiles, 25, type)) {
+      if (!this.player.canBuild(type, tile)) continue;
+      this.game.addExecution(
+        new ConstructionExecution(this.player, type, tile),
       );
       return true;
     }
@@ -435,16 +538,25 @@ export class NationStructureBehavior {
     );
   }
 
+  /**
+   * How many cities the nation effectively has, used to size every other
+   * structure count. Falls back to territory when cities are disabled.
+   */
+  private cityEquivalentCount(): number {
+    if (this.game.config().isUnitDisabled(UnitType.City)) {
+      return Math.max(
+        1,
+        Math.floor(this.player.numTilesOwned() / TILES_PER_CITY_EQUIVALENT),
+      );
+    }
+    return this.player.unitsOwned(UnitType.City);
+  }
+
   private doHandleStructures(): boolean {
     this.reachableStationsCache = null;
     const config = this.game.config();
     const citiesDisabled = config.isUnitDisabled(UnitType.City);
-    const cityCount = citiesDisabled
-      ? Math.max(
-          1,
-          Math.floor(this.player.numTilesOwned() / TILES_PER_CITY_EQUIVALENT),
-        )
-      : this.player.unitsOwned(UnitType.City);
+    const cityCount = this.cityEquivalentCount();
     this._sharedWaterComponents = this.game.sharedWaterComponents(this.player);
     const hasCoastalTiles = this._sharedWaterComponents !== null;
 
@@ -489,10 +601,14 @@ export class NationStructureBehavior {
       }
     }
 
-    // Build order for non-city structures (priority order)
+    // Build order for non-city structures (priority order). Labs come early
+    // because every later unlock depends on them, and barracks before the
+    // rocketry structures because troops matter before warheads do.
     const buildOrder: UnitType[] = [
       UnitType.Port,
       UnitType.Factory,
+      UnitType.ResearchLab,
+      UnitType.Barracks,
       UnitType.SAMLauncher,
       UnitType.MissileSilo,
     ];
@@ -687,15 +803,49 @@ export class NationStructureBehavior {
       return this.cost(UnitType.SAMLauncher);
     }
 
+    const researchableEarly = (type: UnitType): boolean => {
+      const required = config.unitResearchRequirement(type);
+      if (required === null) return true;
+      return (
+        this.player.researchLevel() >= required.level &&
+        this.player.researchLabLevels() >= required.labs
+      );
+    };
+    // Nothing nuclear is reachable yet — the money belongs in research.
+    if (
+      !researchableEarly(UnitType.AtomBomb) &&
+      !researchableEarly(UnitType.HydrogenBomb) &&
+      !researchableEarly(UnitType.MIRV)
+    ) {
+      return this.cost(UnitType.ResearchLab);
+    }
+
     // Save up a limited amount in team games, synced with NationNukeBehavior
     // Saving up for a MIRV is not relevant
     if (this.game.config().gameConfig().gameMode === GameMode.Team) {
       return this.cost(UnitType.HydrogenBomb);
     }
 
-    const mirvEnabled = !config.isUnitDisabled(UnitType.MIRV);
-    const hydroEnabled = !config.isUnitDisabled(UnitType.HydrogenBomb);
-    const atomEnabled = !config.isUnitDisabled(UnitType.AtomBomb);
+    // A nuke the nation cannot research yet is not worth saving for: it
+    // would sit on a pile of gold instead of building the labs that would
+    // actually unlock it.
+    const researchable = (type: UnitType): boolean => {
+      const required = config.unitResearchRequirement(type);
+      if (required === null) return true;
+      return (
+        this.player.researchLevel() >= required.level &&
+        this.player.researchLabLevels() >= required.labs
+      );
+    };
+
+    const mirvEnabled =
+      !config.isUnitDisabled(UnitType.MIRV) && researchable(UnitType.MIRV);
+    const hydroEnabled =
+      !config.isUnitDisabled(UnitType.HydrogenBomb) &&
+      researchable(UnitType.HydrogenBomb);
+    const atomEnabled =
+      !config.isUnitDisabled(UnitType.AtomBomb) &&
+      researchable(UnitType.AtomBomb);
 
     if (mirvEnabled) {
       // Save up for MIRV + Hydrogen Bomb
@@ -709,7 +859,11 @@ export class NationStructureBehavior {
       // Save up for 20 atom bombs
       return this.cost(UnitType.AtomBomb) * 20n;
     }
-    // No nukes enabled, just save up for SAMs
+    // No nukes within reach: put the money toward the research that would
+    // change that, or toward air defence if that is already available.
+    if (!researchable(UnitType.SAMLauncher)) {
+      return this.cost(UnitType.ResearchLab);
+    }
     return this.cost(UnitType.SAMLauncher);
   }
 
@@ -912,6 +1066,11 @@ export class NationStructureBehavior {
         return this.portValue();
       case UnitType.SAMLauncher:
         return this.samLauncherValue();
+      // Barracks and labs are rear-area infrastructure, valued like a city:
+      // inland, spaced out, away from the fighting.
+      case UnitType.Barracks:
+      case UnitType.ResearchLab:
+        return this.cityValue();
       default:
         throw new Error(`Value function not implemented for ${type}`);
     }

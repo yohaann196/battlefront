@@ -21,6 +21,7 @@ import {
   UT_ATOM_BOMB,
   UT_WARSHIP,
 } from "../../../../../src/client/render/types";
+import { Ideology } from "../../../../../src/core/game/Ideology";
 
 function ps(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
@@ -31,6 +32,13 @@ function ps(overrides: Partial<PlayerState> = {}): PlayerState {
     deathPosition: null,
     tilesOwned: 0,
     gold: 0,
+    ideology: Ideology.Capitalism,
+    ideologyTransitionRemainingTicks: 0,
+    hasChosenIdeology: false,
+    researchPoints: 0,
+    researchLevel: 0,
+    researchLabLevels: 0,
+    nukePenaltyRemainingTicks: 0,
     tradeGold: 0,
     trainGold: 0,
     piracyGold: 0,

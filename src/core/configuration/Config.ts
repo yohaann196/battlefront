@@ -6,9 +6,11 @@ import { exp, log, pow, pow2 } from "../DetMath";
 import { DoomsdayClockSpeed } from "../game/DoomsdayClock";
 import {
   Difficulty,
+  EconomicStructures,
   Game,
   GameType,
   Gold,
+  MilitaryStructures,
   Player,
   PlayerInfo,
   PlayerType,
@@ -19,6 +21,17 @@ import {
   UnitInfo,
   UnitType,
 } from "../game/Game";
+import { effectiveModifiers, IdeologyModifiers } from "../game/Ideology";
+import {
+  MAX_RESEARCH_LEVEL,
+  researchAttackBonus,
+  researchDefenseBonus,
+  researchLevelForPoints,
+  ResearchRequirement,
+  researchTroopGrowthBonus,
+  UNIT_RESEARCH_REQUIREMENTS,
+} from "../game/Research";
+import { getScenario, Scenario } from "../game/Scenarios";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
@@ -100,6 +113,14 @@ export interface AttackLogicInput {
   } | null;
   /** A defense post owned by the defender is in range of the tile. */
   defenderHasDefensePost: boolean;
+  /** A fortress owned by the defender is in range (supersedes a post). */
+  defenderHasFortress?: boolean;
+  /** An artillery piece owned by the attacker covers the tile. */
+  attackerHasArtillery?: boolean;
+  /** Attacker's combat strength from government and research (1 = baseline). */
+  attackerStrength?: number;
+  /** Defender's combat strength, incl. any nuclear-sanction debuff. */
+  defenderStrength?: number;
   /** Fraction of land tiles with fallout, or null if the tile has no fallout. */
   falloutRatio: number | null;
   /** Tiles on the attack front this tick (plus jitter); fixed for the tick. */
@@ -121,6 +142,53 @@ export interface NukeMagnitude {
   inner: number;
   outer: number;
 }
+
+// ---------------------------------------------------------------------------
+// Mod tunables. Balance lives here so a pass over the numbers never means a
+// pass over the logic.
+// ---------------------------------------------------------------------------
+
+/**
+ * Trade and rail payouts are scaled by this. The economy buildings are meant
+ * to fund an army rather than win on their own, so their output is trimmed
+ * while their cost is untouched — investment in them still pays, just less
+ * than investment in force.
+ */
+const ECONOMIC_NERF = 0.85;
+
+/** Gold to abandon a government, on top of half your treasury. */
+const IDEOLOGY_SWITCH_BASE_COST = 2_000_000n;
+/** Ticks after a switch where the new government gets only its penalties. */
+const IDEOLOGY_TRANSITION_TICKS = 2 * 60 * 10;
+
+/** How long the world sanctions a nuclear launch: five minutes. */
+const NUKE_PENALTY_TICKS = 5 * 60 * 10;
+/** All income is multiplied by this while sanctioned. */
+const NUKE_SANCTION_MULTIPLIER = 0.5;
+/** Defensive strength multiplier while sanctioned (a 20% penalty). */
+const NUKE_DEFENSE_DEBUFF = 0.8;
+
+/** Troop cap added per barracks level. */
+const BARRACKS_TROOP_INCREASE = 60_000;
+/** Recruitment bonus added per barracks level (additive, so 3 levels = +24%). */
+const BARRACKS_GROWTH_BONUS = 0.08;
+
+/** Tiles from an artillery piece that its supporting fire reaches. */
+const ARTILLERY_RANGE = 30;
+/** Defender losses are multiplied by this inside artillery range. */
+const ARTILLERY_ATTACK_BONUS = 0.7;
+/** Tile cost is multiplied by this inside artillery range (attacks land faster). */
+const ARTILLERY_SPEED_BONUS = 0.8;
+
+/** Tiles a fortress protects. */
+const FORTRESS_RANGE = 45;
+/** Attacker losses multiplier inside fortress range. */
+const FORTRESS_DEFENSE_BONUS = 8;
+/** Tile cost multiplier inside fortress range. */
+const FORTRESS_SPEED_BONUS = 4;
+
+/** Research points a single lab level produces per tick. */
+const RESEARCH_POINTS_PER_LAB_LEVEL = 1;
 
 // attackLogic tunables
 const LARGE_TERRITORY_MIDPOINT = 300_000;
@@ -353,7 +421,198 @@ export class Config {
   }
 
   cityTroopIncrease(): number {
-    return 250_000;
+    // Trimmed from 250k: cities should be one pillar of an army, not the
+    // whole thing. Barracks make up the difference for players who invest
+    // in military infrastructure.
+    return 200_000;
+  }
+
+  // ---- Government ---------------------------------------------------------
+
+  /**
+   * The player's active modifiers. During the window right after a switch
+   * only the penalties apply, which is what stops a player from flipping
+   * ideology to whatever the current minute rewards.
+   */
+  ideologyModifiers(player: Player | PlayerView): IdeologyModifiers {
+    return effectiveModifiers(
+      player.ideology(),
+      player.ideologyTransitionRemainingTicks() > 0,
+    );
+  }
+
+  /**
+   * Changing your economic system costs a flat sum plus half of everything
+   * you have saved, so it is a mid-game pivot you plan for rather than a
+   * reaction to the last fight.
+   */
+  ideologySwitchCost(player: Player | PlayerView): Gold {
+    return IDEOLOGY_SWITCH_BASE_COST + player.gold() / 2n;
+  }
+
+  ideologyTransitionDuration(): Tick {
+    return IDEOLOGY_TRANSITION_TICKS;
+  }
+
+  // ---- Research -----------------------------------------------------------
+
+  /** Technology ceiling: scenarios cap the era, ordinary games do not. */
+  maxResearchLevel(): number {
+    return this.scenario()?.maxResearchLevel ?? MAX_RESEARCH_LEVEL;
+  }
+
+  researchLevel(player: Player | PlayerView): number {
+    return researchLevelForPoints(
+      player.researchPoints(),
+      this.maxResearchLevel(),
+    );
+  }
+
+  researchPointsPerTick(player: Player | PlayerView): number {
+    const labs = player.researchLabLevels();
+    if (labs <= 0) return 0;
+    let rate =
+      labs *
+      RESEARCH_POINTS_PER_LAB_LEVEL *
+      this.ideologyModifiers(player).researchRate;
+    if (player.type() === PlayerType.Bot) {
+      rate *= 0.5;
+    } else if (player.type() === PlayerType.Nation) {
+      switch (this._gameConfig.difficulty) {
+        case Difficulty.Easy:
+          rate *= 0.75;
+          break;
+        case Difficulty.Medium:
+          rate *= 0.9;
+          break;
+        case Difficulty.Hard:
+          rate *= 1;
+          break;
+        case Difficulty.Impossible:
+          rate *= 1.2;
+          break;
+        default:
+          assertNever(this._gameConfig.difficulty);
+      }
+    }
+    return rate;
+  }
+
+  /** What a unit demands before it can be built, or null if unrestricted. */
+  unitResearchRequirement(type: UnitType): ResearchRequirement | null {
+    return UNIT_RESEARCH_REQUIREMENTS[type] ?? null;
+  }
+
+  // ---- Nuclear sanctions --------------------------------------------------
+
+  nukePenaltyDuration(): Tick {
+    return NUKE_PENALTY_TICKS;
+  }
+
+  nukeSanctionMultiplier(): number {
+    return NUKE_SANCTION_MULTIPLIER;
+  }
+
+  nukeDefenseDebuff(): number {
+    return NUKE_DEFENSE_DEBUFF;
+  }
+
+  // ---- Combat strength ----------------------------------------------------
+
+  /**
+   * How hard this player hits, from their government and doctrine research.
+   * 1 is the unmodified baseline.
+   */
+  attackStrength(player: Player | PlayerView): number {
+    return (
+      this.ideologyModifiers(player).attack *
+      researchAttackBonus(this.researchLevel(player))
+    );
+  }
+
+  /**
+   * How hard this player is to displace. A nuclear pariah defends worse:
+   * the world is against them and their own people are not behind the war.
+   */
+  defenseStrength(player: Player | PlayerView): number {
+    const sanctions = player.isNuclearPariah() ? this.nukeDefenseDebuff() : 1;
+    return (
+      this.ideologyModifiers(player).defense *
+      researchDefenseBonus(this.researchLevel(player)) *
+      sanctions
+    );
+  }
+
+  // ---- Structures ---------------------------------------------------------
+
+  barracksTroopIncrease(): number {
+    return BARRACKS_TROOP_INCREASE;
+  }
+
+  barracksGrowthBonus(): number {
+    return BARRACKS_GROWTH_BONUS;
+  }
+
+  artilleryRange(): number {
+    return ARTILLERY_RANGE;
+  }
+
+  artilleryAttackBonus(): number {
+    return ARTILLERY_ATTACK_BONUS;
+  }
+
+  artillerySpeedBonus(): number {
+    return ARTILLERY_SPEED_BONUS;
+  }
+
+  fortressRange(): number {
+    return FORTRESS_RANGE;
+  }
+
+  fortressDefenseBonus(): number {
+    return FORTRESS_DEFENSE_BONUS;
+  }
+
+  fortressSpeedBonus(): number {
+    return FORTRESS_SPEED_BONUS;
+  }
+
+  /** The active scenario, or null in an ordinary game. */
+  scenario(): Scenario | null {
+    const chosen = this._gameConfig.scenario;
+    return chosen === undefined ? null : getScenario(chosen.id);
+  }
+
+  /**
+   * What an ideology does to this structure's price. Every priced structure
+   * falls into exactly one class, so a militarist's barracks are cheap while
+   * their cities are dear.
+   */
+  structureCostMultiplier(player: Player, type: UnitType): number {
+    const mods = this.ideologyModifiers(player);
+    if (type === UnitType.ResearchLab) return mods.researchCost;
+    if (MilitaryStructures.has(type)) return mods.militaryCost;
+    if (EconomicStructures.has(type)) return mods.economicCost;
+    return 1;
+  }
+
+  /**
+   * Everything that scales a player's gold income: their government, and the
+   * sanctions that follow a nuclear launch.
+   */
+  incomeMultiplier(player: Player | PlayerView): number {
+    const sanctions = player.isNuclearPariah()
+      ? this.nukeSanctionMultiplier()
+      : 1;
+    return this.ideologyModifiers(player).goldRate * sanctions;
+  }
+
+  /** As incomeMultiplier, but for trade and rail revenue. */
+  tradeIncomeMultiplier(player: Player | PlayerView): number {
+    const sanctions = player.isNuclearPariah()
+      ? this.nukeSanctionMultiplier()
+      : 1;
+    return this.ideologyModifiers(player).tradeGold * sanctions * ECONOMIC_NERF;
   }
 
   falloutDefenseModifier(falloutRatio: number): number {
@@ -392,7 +651,12 @@ export class Config {
   }
 
   isUnitDisabled(unitType: UnitType): boolean {
-    return this._gameConfig.disabledUnits?.includes(unitType) ?? false;
+    if (this._gameConfig.disabledUnits?.includes(unitType) ?? false) {
+      return true;
+    }
+    // A scenario's bans are part of its era and are not negotiable from the
+    // lobby: no missile silos in 1914.
+    return this.scenario()?.disabledUnits.includes(unitType) ?? false;
   }
 
   bots(): number {
@@ -497,7 +761,11 @@ export class Config {
     }
     const distPenalty = citiesVisited * 5_000;
     const gold = Math.max(5000, baseGold - distPenalty);
-    return toInt(gold * this.goldMultiplierFor(player));
+    return toInt(
+      gold *
+        this.goldMultiplierFor(player) *
+        this.tradeIncomeMultiplier(player),
+    );
   }
 
   trainStationMinRange(): number {
@@ -514,7 +782,13 @@ export class Config {
     // Sigmoid: concave start, sharp S-curve middle, linear end - heavily punishes trades under range debuff.
     const debuff = this.tradeShipShortRangeDebuff();
     const baseGold = 75_000 / (1 + exp(-0.03 * (dist - debuff))) + 50 * dist;
-    return BigInt(Math.floor(baseGold * this.goldMultiplierFor(player)));
+    return BigInt(
+      Math.floor(
+        baseGold *
+          this.goldMultiplierFor(player) *
+          this.tradeIncomeMultiplier(player),
+      ),
+    );
   }
 
   /**
@@ -603,13 +877,15 @@ export class Config {
         };
         break;
       case UnitType.AtomBomb:
+        // Nuclear weapons are an endgame investment, not a mid-game purchase:
+        // the price is what stops a strong economy from simply raining them.
         info = {
-          cost: this.costWrapper(() => 750_000, UnitType.AtomBomb),
+          cost: this.costWrapper(() => 5_000_000, UnitType.AtomBomb),
         };
         break;
       case UnitType.HydrogenBomb:
         info = {
-          cost: this.costWrapper(() => 5_000_000, UnitType.HydrogenBomb),
+          cost: this.costWrapper(() => 25_000_000, UnitType.HydrogenBomb),
         };
         break;
       case UnitType.MIRV:
@@ -621,7 +897,7 @@ export class Config {
             ) {
               return 0n;
             }
-            return 25_000_000n + game.stats().numMirvsLaunched() * 15_000_000n;
+            return 100_000_000n + game.stats().numMirvsLaunched() * 50_000_000n;
           },
         };
         break;
@@ -637,7 +913,7 @@ export class Config {
         break;
       case UnitType.MissileSilo:
         info = {
-          cost: this.costWrapper(() => 1_000_000, UnitType.MissileSilo),
+          cost: this.costWrapper(() => 2_500_000, UnitType.MissileSilo),
           constructionDuration: this.instantBuild() ? 0 : 10 * 10,
           upgradable: true,
         };
@@ -688,6 +964,53 @@ export class Config {
       case UnitType.Train:
         info = {
           cost: () => 0n,
+        };
+        break;
+      case UnitType.Barracks:
+        // The military counterpart to a city: raises the troop ceiling and
+        // speeds recruitment, and gives nothing back economically.
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) => Math.min(1_000_000, (numUnits + 1) * 150_000),
+            UnitType.Barracks,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 3 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.Artillery:
+        // Offensive mirror of the defense post: attacks launched into its
+        // range cost fewer troops and land faster. It is a forward
+        // investment — place it where you intend to push.
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) => Math.min(750_000, (numUnits + 1) * 150_000),
+            UnitType.Artillery,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 5 * 10,
+        };
+        break;
+      case UnitType.Fortress:
+        // A defense post that actually holds a line: wider reach and far
+        // heavier, at a price that makes it a choice about where to stand.
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) => Math.min(2_000_000, (numUnits + 1) * 400_000),
+            UnitType.Fortress,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 10 * 10,
+        };
+        break;
+      case UnitType.ResearchLab:
+        // The only source of research points. Doubling costs mean a tech
+        // lead is paid for in land and gold that could have been an army.
+        info = {
+          cost: this.costWrapper(
+            (numUnits: number) => Math.min(2_000_000, pow2(numUnits) * 200_000),
+            UnitType.ResearchLab,
+          ),
+          constructionDuration: this.instantBuild() ? 0 : 5 * 10,
+          upgradable: true,
         };
         break;
       default:
@@ -741,7 +1064,9 @@ export class Config {
   }
 
   private startingGoldFor(playerInfo: PlayerInfo): Gold {
-    const base = BigInt(this._gameConfig.startingGold ?? 0);
+    const base =
+      BigInt(this._gameConfig.startingGold ?? 0) +
+      BigInt(playerInfo.preset?.startingGold ?? 0);
     const hc = this._gameConfig.hostCheats;
     if (hc?.startingGold && playerInfo.isLobbyCreator) {
       return base + BigInt(hc.startingGold);
@@ -766,7 +1091,8 @@ export class Config {
           Math.min(player.unitsOwned(type), player.unitsConstructed(type)),
         0,
       );
-      return BigInt(costFn(numUnits + extraUnits));
+      const multiplier = this.structureCostMultiplier(player, types[0]);
+      return BigInt(Math.floor(costFn(numUnits + extraUnits) * multiplier));
     };
   }
 
@@ -880,9 +1206,28 @@ export class Config {
     const { attackTroops, attacker, defender } = input;
     let { mag, tileCost } = terrainAttackBase(input.terrain);
 
-    if (defender !== null && input.defenderHasDefensePost) {
-      mag *= this.defensePostDefenseBonus();
-      tileCost *= this.defensePostSpeedBonus();
+    if (defender !== null) {
+      // A fortress supersedes a defense post rather than stacking with it:
+      // overlapping fortifications shouldn't multiply into an unbreakable
+      // tile. The strongest structure covering the tile is what counts.
+      const defenseBonus = Math.max(
+        input.defenderHasDefensePost ? this.defensePostDefenseBonus() : 1,
+        input.defenderHasFortress ? this.fortressDefenseBonus() : 1,
+      );
+      const speedBonus = Math.max(
+        input.defenderHasDefensePost ? this.defensePostSpeedBonus() : 1,
+        input.defenderHasFortress ? this.fortressSpeedBonus() : 1,
+      );
+      mag *= defenseBonus;
+      tileCost *= speedBonus;
+
+      // Artillery is the answer to entrenchment: supporting fire cuts what
+      // the push costs and speeds it up, but only against a real opponent
+      // (shelling empty land means nothing).
+      if (input.attackerHasArtillery) {
+        mag *= this.artilleryAttackBonus();
+        tileCost *= this.artillerySpeedBonus();
+      }
     }
     if (input.falloutRatio !== null) {
       const fallout = this.falloutDefenseModifier(input.falloutRatio);
@@ -927,6 +1272,8 @@ export class Config {
       LARGE_DEFENDER_DEPTH,
     );
 
+    // Betrayal only. A nuclear pariah is punished through defenderStrength
+    // instead, so nuking does not silently apply the betrayal debuff too.
     const traitorLossMod = defender.isTraitor ? this.traitorDefenseDebuff() : 1;
     const traitorCostMod = defender.isTraitor ? this.traitorSpeedDebuff() : 1;
 
@@ -956,15 +1303,27 @@ export class Config {
       attacker.numTiles,
       LARGE_ATTACKER_SPEED_DEPTH,
     );
+
+    // Government and doctrine meet here. Only the ratio matters — a stronger
+    // attacker bleeds less and moves faster, a stronger defender does the
+    // reverse — and it is clamped so no combination of buffs can make an
+    // attack free or impossible.
+    const strengthRatio = within(
+      (input.defenderStrength ?? 1) / (input.attackerStrength ?? 1),
+      0.5,
+      2,
+    );
+
     return {
-      attackerTroopLoss,
-      defenderTroopLoss,
+      attackerTroopLoss: attackerTroopLoss * strengthRatio,
+      defenderTroopLoss: defenderTroopLoss / strengthRatio,
       tickFraction:
         (speedCost *
           tileCost *
           largeAttackerSpeedBonus *
           largeDefenderBonus *
-          traitorCostMod) /
+          traitorCostMod *
+          strengthRatio) /
         input.borderSize,
     };
   }
@@ -998,37 +1357,50 @@ export class Config {
   }
 
   startManpower(playerInfo: PlayerInfo): number {
+    // Scenarios seat some factions as great powers and others as minor ones.
+    const strength = playerInfo.preset?.strength ?? 1;
     if (playerInfo.playerType === PlayerType.Bot) {
-      return 10_000;
+      return 10_000 * strength;
     }
     if (playerInfo.playerType === PlayerType.Nation) {
       switch (this._gameConfig.difficulty) {
         case Difficulty.Easy:
-          return 12_500;
+          return 12_500 * strength;
         case Difficulty.Medium:
-          return 18_750;
+          return 18_750 * strength;
         case Difficulty.Hard:
-          return 25_000; // Like humans
+          return 25_000 * strength; // Like humans
         case Difficulty.Impossible:
-          return 31_250;
+          return 31_250 * strength;
         default:
           assertNever(this._gameConfig.difficulty);
       }
     }
-    return this.hasInfiniteTroopsForInfo(playerInfo) ? 1_000_000 : 25_000;
+    return this.hasInfiniteTroopsForInfo(playerInfo)
+      ? 1_000_000
+      : 25_000 * strength;
   }
 
   maxTroops(player: Player | PlayerView): number {
     const maxTroops =
       player.type() === PlayerType.Human && this.hasInfiniteTroopsFor(player)
         ? 1_000_000_000
-        : 2 * (pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
-          player
-            .units(UnitType.City)
-            .filter((u) => !u.isUnderConstruction())
-            .map((city) => city.level())
-            .reduce((a, b) => a + b, 0) *
-            this.cityTroopIncrease();
+        : (2 * (pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
+            player
+              .units(UnitType.City)
+              .filter((u) => !u.isUnderConstruction())
+              .map((city) => city.level())
+              .reduce((a, b) => a + b, 0) *
+              this.cityTroopIncrease() +
+            // Barracks are the military answer to cities: they raise the
+            // troop ceiling without any of a city's economic upside.
+            player
+              .units(UnitType.Barracks)
+              .filter((u) => !u.isUnderConstruction())
+              .map((b) => b.level())
+              .reduce((a, b) => a + b, 0) *
+              this.barracksTroopIncrease()) *
+          this.ideologyModifiers(player).maxTroops;
 
     if (player.type() === PlayerType.Bot) {
       return maxTroops / 3;
@@ -1060,6 +1432,17 @@ export class Config {
     const ratio = 1 - player.troops() / max;
     toAdd *= ratio;
 
+    // Government, barracks and conscription doctrine all feed recruitment.
+    // Barracks stack additively so the tenth is worth the same as the first.
+    const barracksLevels = player
+      .units(UnitType.Barracks)
+      .filter((u) => !u.isUnderConstruction())
+      .reduce((total, b) => total + b.level(), 0);
+    toAdd *=
+      this.ideologyModifiers(player).troopGrowth *
+      (1 + barracksLevels * this.barracksGrowthBonus()) *
+      researchTroopGrowthBonus(this.researchLevel(player));
+
     if (player.type() === PlayerType.Bot) {
       toAdd *= 0.5;
     }
@@ -1087,7 +1470,8 @@ export class Config {
   }
 
   goldAdditionRate(player: Player | PlayerView): Gold {
-    const multiplier = this.goldMultiplierFor(player);
+    const multiplier =
+      this.goldMultiplierFor(player) * this.incomeMultiplier(player);
     let baseRate: bigint;
     if (player.type() === PlayerType.Bot) {
       baseRate = 50n;

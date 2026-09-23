@@ -1,8 +1,15 @@
 import { GameView } from "../../client/view";
 import { NukeMagnitude } from "../configuration/Config";
-import { Game, Player, Structures } from "../game/Game";
+import {
+  Game,
+  MessageType,
+  Player,
+  Structures,
+  TerrainType,
+} from "../game/Game";
 import { euclDistFN, GameMap, TileRef } from "../game/GameMap";
 import { ReadonlyTileSet } from "../game/TileSet";
+import { PseudoRandom } from "../PseudoRandom";
 
 export interface NukeBlastParams {
   gm: GameMap;
@@ -351,4 +358,84 @@ export function calculateTerritoryCenter(
   }
 
   return closestTile;
+}
+
+/**
+ * The diplomatic and economic fallout of using a nuclear weapon.
+ *
+ * Nukes are not just an expensive attack — the world reacts. Everyone who is
+ * not on the launcher's side turns hostile (bots embargo them, refuse
+ * alliances and single them out for attack), sanctions halve their income,
+ * and their own defense suffers, all for Config.nukePenaltyDuration(). The
+ * launcher's allies are unhappy but stand by them.
+ *
+ * Applied at launch rather than at detonation: the decision is what the world
+ * punishes, and an intercepted warhead still announced your intent.
+ */
+export function applyNukeLaunchPenalty(game: Game, launcher: Player): void {
+  launcher.markNuclearPariah();
+
+  for (const other of game.players()) {
+    if (other === launcher) continue;
+    const friendly =
+      launcher.isOnSameTeam(other) || launcher.isAlliedWith(other);
+    other.updateRelation(launcher, friendly ? -50 : -100);
+    if (!friendly) {
+      game.displayMessage(
+        "events_display.nuke_sanctions_other",
+        MessageType.NUKE_SANCTIONS,
+        other.id(),
+        undefined,
+        { name: launcher.displayName() },
+        undefined,
+        launcher.id(),
+      );
+    }
+  }
+
+  game.displayMessage(
+    "events_display.nuke_sanctions_self",
+    MessageType.NUKE_SANCTIONS,
+    launcher.id(),
+    undefined,
+    {
+      minutes: Math.ceil(
+        (game.config().nukePenaltyDuration() * game.config().msPerTick()) /
+          60_000,
+      ),
+    },
+  );
+}
+
+/**
+ * Picks an unowned land tile near `cell` to drop a player onto.
+ *
+ * Used to seat a faction at its historical position without demanding that
+ * the exact pixel be free land — the search spirals out over a small window
+ * and prefers flat ground, the same way nations place themselves from a map
+ * manifest. Returns null if nothing suitable is within reach.
+ */
+export function findLandSpawnNear(
+  game: Game,
+  cell: { x: number; y: number },
+  random: PseudoRandom,
+  delta: number = 25,
+): TileRef | null {
+  for (let tries = 0; tries < 50; tries++) {
+    const x = random.nextInt(cell.x - delta, cell.x + delta);
+    const y = random.nextInt(cell.y - delta, cell.y + delta);
+    if (!game.isValidCoord(x, y)) {
+      continue;
+    }
+    const tile = game.ref(x, y);
+    if (game.isLand(tile) && !game.hasOwner(tile) && !game.isImpassable(tile)) {
+      // Mountains are poor ground to start on; skip most of them, but not
+      // all, so a mountainous region can still be settled.
+      if (game.terrainType(tile) === TerrainType.Mountain && random.chance(2)) {
+        continue;
+      }
+      return tile;
+    }
+  }
+  return null;
 }

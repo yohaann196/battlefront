@@ -1,27 +1,30 @@
 #version 300 es
 precision highp float;
 
-// One instanced quad per defense post. The quad is a box centered on the post,
-// sized to cover the post's range; the fragment shader trims it to a circle and
-// filters by tile owner. See DefenseCoveragePass.
+// One instanced quad per defending structure. The quad is a box centered on
+// the structure, sized to cover its range; the fragment shader trims it to a
+// circle and filters by tile owner. Range is per-instance because a fortress
+// protects considerably more ground than a defense post.
+// See DefenseCoveragePass.
 
 layout(location = 0) in vec2 aCorner;  // unit quad corner, [0,1]²
-layout(location = 1) in vec3 aPost;     // (tileX, tileY, ownerID)
+layout(location = 1) in vec4 aPost;     // (tileX, tileY, ownerID, range)
 
 uniform vec2 uMapSize;
-uniform float uRange;
 
 flat out vec2 vPostCenter;
 flat out float vOwner;
+flat out float vRange;
 
 void main() {
   vPostCenter = aPost.xy;
   vOwner = aPost.z;
+  vRange = aPost.w;
 
   // Box spanning [center - range, center + range] in tile coords, plus a
   // 1-tile margin so the boundary tiles at exactly `range` are rasterized
   // (their pixel centers sit just past the un-padded edge).
-  vec2 tilePos = aPost.xy + (aCorner * 2.0 - 1.0) * (uRange + 1.0);
+  vec2 tilePos = aPost.xy + (aCorner * 2.0 - 1.0) * (aPost.w + 1.0);
 
   // Tile-resolution FBO (viewport = map size), so map straight to clip space.
   vec2 ndc = (tilePos / uMapSize) * 2.0 - 1.0;

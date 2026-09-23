@@ -155,20 +155,55 @@
     "title": "Your account is banned",
     "until": "Banned until {date}."
   },
+  "battlefront": {
+    "advanced_setup": "Advanced setup",
+    "army": "Army",
+    "built_on": "Built on OpenFront",
+    "commander": "Commander",
+    "custom_game": "Custom game",
+    "deploy": "Deploy",
+    "deploying": "Deploying…",
+    "era_restricted": "Era restricted",
+    "help": "Help",
+    "language": "Language",
+    "no_power": "Choose a power to command.",
+    "orders": "Orders",
+    "orders_summary": "{faction} — {theatre}, under {doctrine}.",
+    "powers": "powers",
+    "select_doctrine": "Select doctrine",
+    "select_opposition": "Opposition strength",
+    "select_power": "Select power",
+    "select_theatre": "Select theatre",
+    "settings": "Settings",
+    "silos": "{count} silo(s)",
+    "strategic": "Strategic",
+    "tagline": "Command a nation. Choose your doctrine. Win the war.",
+    "tech_ceiling": "Tech ceiling Lv {level}",
+    "territory": "Territory",
+    "title": "Battlefront",
+    "treasury": "Treasury"
+  },
   "build_menu": {
     "desc": {
+      "artillery": "Attacks launched into its range cost fewer troops",
       "atom_bomb": "Small explosion",
+      "barracks": "Raises your troop cap and recruitment rate",
       "city": "Increases max population",
       "defense_post": "Increases defenses of nearby borders",
       "factory": "Creates railroads and spawns trains",
+      "fortress": "A heavy defense post covering a wide area",
       "hydrogen_bomb": "Large explosion",
       "mirv": "Huge explosion, only targets selected player",
       "missile_silo": "Used to launch nukes",
       "port": "Sends trade ships to generate gold",
+      "research_lab": "Generates research points to unlock technology",
       "sam_launcher": "Defends against incoming nukes",
       "warship": "Captures trade ships, destroys ships and boats"
     },
+    "locked_labs": "Requires {labs} Research Lab levels",
+    "locked_research": "Requires Research Lv {level}",
     "not_enough_money": "Not enough money",
+    "nuke_warning": "⚠ Launching triggers global sanctions",
     "upgrade_amount": "x{amount}",
     "warship_shift_hint": "Hold Shift and drag to select multiple warships at once"
   },
@@ -761,9 +796,12 @@
     "duration_seconds_plural": "{seconds} seconds",
     "focus": "Focus",
     "hydrogen_bomb_detonated": "{name} - hydrogen bomb detonated",
+    "ideology_changed": "Government changed to {ideology}",
     "ignore": "Ignore",
     "missile_intercepted": "SAM intercepted {unit}",
     "no_boats_available": "No boats available, max {max}",
+    "nuke_sanctions_other": "{name} has launched a nuclear weapon",
+    "nuke_sanctions_self": "Nuclear launch: the world has turned against you. Income halved and defenses weakened for {minutes} minutes.",
     "received_gold_from_captured_ship": "Received {gold} gold from ship captured from {name}",
     "received_gold_from_conquest": "Conquered {name}, received {gold} gold",
     "received_gold_from_player": "Received {gold} gold from {name}",
@@ -771,6 +809,7 @@
     "reject_alliance": "Reject",
     "renew_alliance": "Request to renew",
     "request_alliance": "{name} requests an alliance!",
+    "research_unlocked": "Research complete: {name}",
     "retreating": "retreating",
     "sent_emoji": "Sent {name}: {emoji}",
     "sent_gold_to_player": "Sent {gold} gold to {name}",
@@ -862,6 +901,7 @@
     "disable_units": "Disable Units",
     "doomsday_clock": "Doomsday Clock",
     "gold_multiplier": "Gold multiplier",
+    "ideology": "Government",
     "infinite_gold": "Infinite gold",
     "infinite_troops": "Infinite troops",
     "instant_build": "Instant build",
@@ -871,6 +911,7 @@
     "options": "Options",
     "overtime": "Overtime after (minutes)",
     "random_spawn": "Random spawn",
+    "scenario": "Scenario",
     "start": "Start Game",
     "starting": "Starting…",
     "starting_gold": "Starting Gold (Millions)",
@@ -883,6 +924,11 @@
   },
   "game_timer": {
     "one_minute_remaining": "One minute remaining!"
+  },
+  "government": {
+    "economy": "Economy",
+    "military": "Military",
+    "title": "Government & Research"
   },
   "graphics_setting": {
     "advanced_desc": "Fine-tune individual graphics options",
@@ -1158,6 +1204,40 @@
     "visibility_public": "Public",
     "waiting": "Waiting for players..."
   },
+  "ideology": {
+    "capitalism": {
+      "buffs": "+25% gold, +15% trade income, cheaper industry",
+      "debuffs": "−10% troop growth, costlier military",
+      "desc": "A trading power. Money first, manpower second.",
+      "name": "Capitalism"
+    },
+    "communism": {
+      "buffs": "+25% troop growth, +20% troop cap, +10% defense",
+      "debuffs": "−15% gold, −25% trade income, costlier industry",
+      "desc": "A people's army. Endless manpower on a thin economy.",
+      "name": "Communism"
+    },
+    "confirm_switch": "Change government to {ideology} for {cost} gold? Your new government's benefits will not apply for {minutes} minutes.",
+    "current": "Current government",
+    "militarism": {
+      "buffs": "+15% attack, −25% military building cost",
+      "debuffs": "−10% gold, −15% research, costlier industry",
+      "desc": "A war machine. Strike hard and finish early.",
+      "name": "Militarism"
+    },
+    "switch": "Change government",
+    "switch_cost": "Cost: {cost}",
+    "switch_free": "Your first choice is free",
+    "technocracy": {
+      "buffs": "+50% research, −30% lab cost, +5% defense",
+      "debuffs": "−10% troop growth, −10% troop cap, −5% attack",
+      "desc": "A research state. Win later, through technology.",
+      "name": "Technocracy"
+    },
+    "title": "Government",
+    "transition": "Reorganizing: {seconds}s",
+    "transition_note": "While reorganizing, a new government's benefits do not apply yet."
+  },
   "inventory": {
     "equipped": "Equipped",
     "load_failed": "Couldn't load your inventory. Please reload and try again.",
@@ -1289,13 +1369,11 @@
     "menu": "Menu",
     "news": "News",
     "play": "Play",
-    "privacy_policy": "Privacy Policy",
     "quit": "Exit game",
     "settings": "Settings",
     "sign_in": "Sign in",
     "solo": "Solo",
     "store": "Store",
-    "terms_of_service": "Terms of Service",
     "title": "OpenFront (ALPHA)",
     "troubleshooting": "Troubleshooting",
     "tutorial": "Tutorial",
@@ -1543,6 +1621,13 @@
     "tournament": "TOURNAMENT",
     "tutorial": "TUTORIAL",
     "warning": "WARNING"
+  },
+  "nuke": {
+    "confirm_body": "Using nuclear weapons has consequences that last long after the blast:\n\n• Every nation that is not your ally turns hostile\n• Your income is cut in half for 5 minutes\n• Your defenses are 20% weaker for 5 minutes\n• You are branded a pariah and become a target\n\nLaunch anyway?",
+    "confirm_launch": "Launch",
+    "confirm_title": "Launch a nuclear weapon?",
+    "sanctions_banner": "UNDER SANCTIONS — {time}",
+    "sanctions_detail": "−50% income · −20% defense · nations hostile"
   },
   "overtime": {
     "first_place": "1st: {name} ({pct}%)",
@@ -1800,8 +1885,75 @@
     "game_speed": "Game speed",
     "replay_speed": "Replay speed"
   },
+  "research": {
+    "labs": "{labs} lab levels",
+    "level": "Research Lv {level}",
+    "level_conscription": {
+      "desc": "+10% troop growth",
+      "name": "Conscription"
+    },
+    "level_fortification": {
+      "desc": "+10% defense; unlocks Fortress and SAM Launcher",
+      "name": "Fortification"
+    },
+    "level_military_doctrine": {
+      "desc": "+10% attack; unlocks Artillery",
+      "name": "Military Doctrine"
+    },
+    "level_mirv_program": {
+      "desc": "Unlocks the MIRV",
+      "name": "MIRV Program"
+    },
+    "level_nuclear_fission": {
+      "desc": "Unlocks the Atom Bomb",
+      "name": "Nuclear Fission"
+    },
+    "level_rocketry": {
+      "desc": "+5% attack; unlocks Missile Silo",
+      "name": "Rocketry"
+    },
+    "level_short": "Lv {level}",
+    "level_thermonuclear": {
+      "desc": "Unlocks the Hydrogen Bomb",
+      "name": "Thermonuclear Weapons"
+    },
+    "max": "Fully researched",
+    "no_labs": "Build a Research Lab to begin researching",
+    "progress": "{points} / {total}",
+    "rate": "{rate}/s",
+    "title": "Research",
+    "unlocked": "Researched"
+  },
   "rewards_modal": {
     "title": "Rewards"
+  },
+  "scenario": {
+    "empires_1500": {
+      "desc": "The age of sail. Gunpowder empires carve up the world.",
+      "name": "Empires of 1500"
+    },
+    "locked_by_scenario": "Set by the scenario",
+    "modern_world": {
+      "desc": "Today's nations, today's arsenals. Everyone for themselves.",
+      "name": "Modern World"
+    },
+    "mongol_conquest": {
+      "desc": "Ride out of the steppe and break the old order of Asia.",
+      "name": "Mongol Conquest"
+    },
+    "none": "None",
+    "none_desc": "A standard game on the map you pick",
+    "pick_faction": "Choose your nation",
+    "playing_as": "Playing as {faction}",
+    "title": "Scenario",
+    "ww1": {
+      "desc": "Central Powers against the Entente. No rockets, no bombs.",
+      "name": "World War I"
+    },
+    "ww2": {
+      "desc": "Axis against Allies across Europe, 1939.",
+      "name": "World War II"
+    }
   },
   "select_lang": {
     "title": "Select Language"
@@ -2085,8 +2237,8 @@
       "sam_info": "SAM Launcher — defends against nuclear strikes by shooting down incoming missiles.",
       "send_boat": "Boats send your troops across water. Right-click an enemy coastline across the water to open the radial menu, then select the boat.",
       "silo_loading": "Your Missile Silo is loading — a nuke can be launched once it's fully ready.",
-      "spawn": "Click anywhere on the map to pick where you spawn.",
-      "spawn_wait": "Spot picked! You can still move it until the timer runs out — the game starts then.",
+      "spawn": "Your forces are deploying to their homeland.",
+      "spawn_wait": "Deploying your forces…",
       "traitor_info": "Traitors get a large defense debuff for 30 seconds, so be careful.",
       "troop_rate": "This is your troop growth rate. Growth slows down and turns orange once your troops approach half of your max.",
       "troops": "Keep an eye on your troop count. Attacking with too few troops leaves you weak — let them regrow between attacks."
@@ -2108,15 +2260,19 @@
     "title": "Tutorial"
   },
   "unit_type": {
+    "artillery": "Artillery",
     "atom_bomb": "Atom Bomb",
+    "barracks": "Barracks",
     "boat": "Boat",
     "city": "City",
     "defense_post": "Defense Post",
     "factory": "Factory",
+    "fortress": "Fortress",
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
     "missile_silo": "Missile Silo",
     "port": "Port",
+    "research_lab": "Research Lab",
     "sam_launcher": "SAM Launcher",
     "warship": "Warship"
   },

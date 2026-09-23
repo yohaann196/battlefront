@@ -150,6 +150,14 @@ export class ConstructionExecution implements Execution {
       case UnitType.Factory:
         this.mg.addExecution(new FactoryExecution(this.structure!));
         break;
+      // Barracks, artillery, fortresses and research labs are passive: their
+      // effects are read straight off the owner's unit list by Config and
+      // AttackExecution, so they need no per-tick execution of their own.
+      case UnitType.Barracks:
+      case UnitType.Artillery:
+      case UnitType.Fortress:
+      case UnitType.ResearchLab:
+        break;
       default:
         console.warn(
           `unit type ${this.constructionType} cannot be constructed`,
@@ -166,6 +174,10 @@ export class ConstructionExecution implements Execution {
       case UnitType.SAMLauncher:
       case UnitType.City:
       case UnitType.Factory:
+      case UnitType.Barracks:
+      case UnitType.Artillery:
+      case UnitType.Fortress:
+      case UnitType.ResearchLab:
         return true;
       default:
         return false;

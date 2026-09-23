@@ -1,4 +1,5 @@
 import type { TileRef } from "../../../core/game/GameMap";
+import { Ideology } from "../../../core/game/Ideology";
 
 /** TrainType enum — numeric values matching UnitState.trainType. */
 export enum TrainType {
@@ -77,6 +78,16 @@ export interface PlayerState {
   troops: number;
   isTraitor: boolean;
   traitorRemainingTicks: number;
+  /** Current government (drives the HUD chip and the government panel). */
+  ideology: Ideology;
+  ideologyTransitionRemainingTicks: number;
+  /** False until the player first commits to a government. */
+  hasChosenIdeology: boolean;
+  researchPoints: number;
+  researchLevel: number;
+  researchLabLevels: number;
+  /** Ticks left of post-launch nuclear sanctions (0 = not sanctioned). */
+  nukePenaltyRemainingTicks: number;
   inDoomsdayClock: boolean;
   isDecaying: boolean;
   markedDoomsdayClockTick: number;

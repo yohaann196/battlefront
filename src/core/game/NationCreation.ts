@@ -10,6 +10,8 @@ import {
   PlayerInfo,
   PlayerType,
 } from "./Game";
+import { IDEOLOGY_ORDER } from "./Ideology";
+import { getScenario, Scenario, ScenarioFaction } from "./Scenarios";
 import { AdditionalNation, Nation as ManifestNation } from "./TerrainMapLoader";
 
 /**
@@ -47,8 +49,21 @@ export function createNationsForGame(
         [],
         null,
         n.flag ?? null,
+        // Each nation commits to an economic system too, so the bots play
+        // recognisably different games from each other.
+        { ideology: IDEOLOGY_ORDER[random.nextInt(0, IDEOLOGY_ORDER.length)] },
       ),
     );
+
+  const chosenScenario = gameStart.config.scenario;
+  if (chosenScenario !== undefined) {
+    return createScenarioNations(
+      getScenario(chosenScenario.id),
+      chosenScenario.faction,
+      manifestNations,
+      random,
+    );
+  }
 
   const isCompactMap = gameStart.config.gameMapSize === GameMapSize.Compact;
 
@@ -697,4 +712,143 @@ function pluralize(noun: string): string {
     return `${noun}es`;
   }
   return `${noun}s`;
+}
+
+/**
+ * Seats a scenario's cast as nations.
+ *
+ * Each faction borrows its spawn position and flag from a nation on the map
+ * (`baseNation`) unless it names its own — that way a scenario needs no map
+ * or flag art of its own, and a power with no modern counterpart can still
+ * stand where history put it. The faction the player chose is left out; the
+ * human takes that seat (see GameRunner).
+ */
+export function createScenarioNations(
+  scenario: Scenario,
+  humanFactionKey: string,
+  manifestNations: ManifestNation[],
+  random: PseudoRandom,
+): Nation[] {
+  const byName = new Map(manifestNations.map((n) => [n.name, n]));
+  const nations: Nation[] = [];
+  const usedBaseNations = new Set<string>();
+
+  for (const faction of scenario.factions) {
+    if (faction.key === humanFactionKey) {
+      // The player holds this seat. Its ground is still spoken for, so the
+      // fill-in pass below must not re-seat the same country as a neutral.
+      if (faction.baseNation !== undefined) {
+        usedBaseNations.add(faction.baseNation);
+      }
+      continue;
+    }
+    const nation = scenarioNation(faction, byName, random);
+    if (nation === null) {
+      console.warn(
+        `scenario ${scenario.id}: cannot place faction ${faction.key}`,
+      );
+      continue;
+    }
+    if (faction.baseNation !== undefined) {
+      usedBaseNations.add(faction.baseNation);
+    }
+    nations.push(nation);
+  }
+
+  // Minor powers the scenario does not name, kept so a world map still feels
+  // populated. They sit out the main alliance blocs.
+  if (scenario.includeOtherManifestNations) {
+    for (const manifest of manifestNations) {
+      if (usedBaseNations.has(manifest.name)) continue;
+      nations.push(
+        new Nation(
+          manifest.coordinates !== undefined
+            ? new Cell(manifest.coordinates[0], manifest.coordinates[1])
+            : undefined,
+          new PlayerInfo(
+            manifest.name,
+            PlayerType.Nation,
+            null,
+            random.nextID(),
+            false,
+            null,
+            [],
+            null,
+            manifest.flag ?? null,
+            {
+              ideology:
+                IDEOLOGY_ORDER[random.nextInt(0, IDEOLOGY_ORDER.length)],
+              team: scenario.neutralTeam,
+              researchLevel: 1,
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  return nations;
+}
+
+function scenarioNation(
+  faction: ScenarioFaction,
+  byName: Map<string, ManifestNation>,
+  random: PseudoRandom,
+): Nation | null {
+  const cell = scenarioFactionCell(faction, byName);
+  if (cell === null) {
+    return null;
+  }
+  return new Nation(
+    cell,
+    new PlayerInfo(
+      faction.name,
+      PlayerType.Nation,
+      null,
+      random.nextID(),
+      false,
+      null,
+      [],
+      null,
+      scenarioFactionFlag(faction, byName),
+      {
+        ideology: faction.ideology,
+        team: faction.team,
+        researchLevel: faction.researchLevel,
+        strength: faction.strength,
+        startingGold: faction.startingGold,
+      },
+    ),
+  );
+}
+
+/** A faction's spawn cell: its own coordinates, else its base nation's. */
+export function scenarioFactionCell(
+  faction: ScenarioFaction,
+  byName: Map<string, ManifestNation>,
+): Cell | null {
+  if (faction.coordinates !== undefined) {
+    return new Cell(faction.coordinates[0], faction.coordinates[1]);
+  }
+  const base =
+    faction.baseNation === undefined
+      ? undefined
+      : byName.get(faction.baseNation);
+  if (base?.coordinates === undefined) {
+    return null;
+  }
+  return new Cell(base.coordinates[0], base.coordinates[1]);
+}
+
+/** A faction's flag: its own, else its base nation's. */
+export function scenarioFactionFlag(
+  faction: ScenarioFaction,
+  byName: Map<string, ManifestNation>,
+): string | null {
+  if (faction.flag !== undefined) return faction.flag;
+  const base =
+    faction.baseNation === undefined
+      ? undefined
+      : byName.get(faction.baseNation);
+  return base?.flag ?? null;
 }

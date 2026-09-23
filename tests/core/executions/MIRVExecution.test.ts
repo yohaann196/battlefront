@@ -276,8 +276,11 @@ describe("MIRVExecution", () => {
 
     executeTicks(game, 2);
 
-    // Expect MIRV to launch successfully without marking player as traitor
+    // Expect MIRV to launch successfully without betraying anyone.
     expect(player.units(UnitType.MIRV)).toHaveLength(1);
-    expect(player.isTraitor()).toBe(false);
+    expect(player.isAllianceTraitor()).toBe(false);
+    // The world still sanctions the launch: detonating on your own soil is
+    // not a loophole for wiping an invading army for free.
+    expect(player.isNuclearPariah()).toBe(true);
   });
 });

@@ -9,15 +9,19 @@ import type { Config } from "src/core/configuration/Config";
 import type { RendererConfig, UnitState } from "../../types";
 import {
   SMOOTHED_NUKE_TYPES,
+  UT_ARTILLERY,
   UT_ATOM_BOMB,
+  UT_BARRACKS,
   UT_CITY,
   UT_DEFENSE_POST,
   UT_FACTORY,
+  UT_FORTRESS,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
   UT_MISSILE_SILO,
   UT_PORT,
+  UT_RESEARCH_LAB,
   UT_SAM_LAUNCHER,
   UT_TRADE_SHIP,
   UT_TRAIN,
@@ -49,6 +53,12 @@ const LIGHT_CONFIGS: Record<string, LightConfig> = {
   [UT_DEFENSE_POST]: { r: 0.8, g: 0.85, b: 1.0, radius: 18, intensity: 1.2 },
   [UT_SAM_LAUNCHER]: { r: 0.8, g: 0.85, b: 1.0, radius: 18, intensity: 1.2 },
   [UT_MISSILE_SILO]: { r: 1.0, g: 0.4, b: 0.2, radius: 18, intensity: 1.2 },
+  // Barracks and labs glow like the other inhabited buildings; the two
+  // emplacements take the cold military light the defense post uses.
+  [UT_BARRACKS]: { r: 1.0, g: 0.8, b: 0.45, radius: 18, intensity: 1.2 },
+  [UT_ARTILLERY]: { r: 0.85, g: 0.85, b: 1.0, radius: 18, intensity: 1.2 },
+  [UT_FORTRESS]: { r: 0.8, g: 0.85, b: 1.0, radius: 20, intensity: 1.3 },
+  [UT_RESEARCH_LAB]: { r: 0.6, g: 0.9, b: 1.0, radius: 18, intensity: 1.2 },
   [UT_TRANSPORT]: { r: 0.9, g: 0.8, b: 0.6, radius: 6, intensity: 2.7 },
   [UT_TRADE_SHIP]: { r: 0.9, g: 0.8, b: 0.6, radius: 6, intensity: 2.7 },
   [UT_WARSHIP]: { r: 0.9, g: 0.85, b: 0.7, radius: 10, intensity: 2.8 },

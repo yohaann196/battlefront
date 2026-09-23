@@ -23,6 +23,8 @@ import {
   Trios,
   UnitType,
 } from "./game/Game";
+import { Ideology } from "./game/Ideology";
+import { ScenarioId } from "./game/Scenarios";
 import { ArchivedPlayerStatsSchema, PlayerStatsSchema } from "./StatsSchemas";
 import { flattenedEmojiTable, LOBBY_LABEL_MAX } from "./Util";
 
@@ -54,8 +56,10 @@ export type Intent =
   | KickPlayerIntent
   | TogglePauseIntent
   | UpdateGameConfigIntent
-  | ToggleGameStartTimer;
+  | ToggleGameStartTimer
+  | SetIdeologyIntent;
 
+export type SetIdeologyIntent = z.infer<typeof SetIdeologyIntentSchema>;
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
 export type SpawnIntent = z.infer<typeof SpawnIntentSchema>;
@@ -545,6 +549,14 @@ export const GameConfigSchema = z.object({
   playerTeams: TeamCountConfigSchema.optional(),
   goldMultiplier: zb.float({ min: 0.1, max: 1000 }).nullable().optional(),
   startingGold: zb.uint({ max: 1000000000 }).nullable().optional(),
+  // Pre-made historical setup. `faction` is the ScenarioFaction key the
+  // player chose; the rest of the cast is seated as nations.
+  scenario: z
+    .object({
+      id: z.enum(ScenarioId),
+      faction: z.string().max(64),
+    })
+    .optional(),
   hostCheats: z
     .object({
       infiniteGold: z.boolean().optional(),
@@ -694,6 +706,11 @@ export const BuildUnitIntentSchema = z.object({
   amount: zb.uint({ min: 1, max: MAX_UPGRADE_AMOUNT }).optional(),
 });
 
+export const SetIdeologyIntentSchema = z.object({
+  type: z.literal("set_ideology"),
+  ideology: z.enum(Ideology),
+});
+
 export const UpgradeStructureIntentSchema = z.object({
   type: z.literal("upgrade_structure"),
   unit: z.enum(UnitType),
@@ -789,6 +806,9 @@ export const IntentSchema = z.discriminatedUnion("type", [
   TogglePauseIntentSchema,
   UpdateGameConfigIntentSchema,
   ToggleGameStartTimerIntentSchema,
+  // Appended: the variant's index in this array is its wire tag, so new
+  // intents go at the end (zbin/README.md).
+  SetIdeologyIntentSchema,
 ]);
 
 // StampedIntent = Intent with server-stamped clientID (used in turns and execution)
@@ -902,6 +922,9 @@ export const PlayerSchema = z.object({
   // game's team list). Feeds deterministic team assignment, so it must be
   // identical for every client (like clanTag/friends).
   teamIndex: zb.uint().optional(),
+  // Government chosen in the lobby. Like teamIndex it feeds the deterministic
+  // sim, so every client must receive the same value.
+  ideology: z.enum(Ideology).optional(),
 });
 
 // A purchased bot tribe name in use this game (active names are globally

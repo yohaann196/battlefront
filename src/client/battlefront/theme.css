@@ -1,0 +1,165 @@
+/**
+ * Battlefront visual identity: a command console.
+ *
+ * Charcoal panels on a dark field, amber for anything the player commands and
+ * red for anything that threatens them, hairline rules instead of shadows, and
+ * uppercase tracked labels. The look should read like a map table in a war
+ * room rather than a consumer game menu.
+ */
+
+:root {
+  --bf-bg: #0b0e13;
+  --bf-bg-elev: #12161e;
+  --bf-panel: #171c26;
+  --bf-panel-hi: #1e2531;
+  --bf-line: #2b3342;
+  --bf-line-hi: #3b4557;
+
+  --bf-text: #e6eaf2;
+  --bf-text-dim: #8d97a8;
+  --bf-text-faint: #5c6576;
+
+  /* Amber = yours, under your command. */
+  --bf-amber: #f0a92b;
+  --bf-amber-dim: #a8761c;
+  /* Red = hostile, or a decision with consequences. */
+  --bf-red: #d9433f;
+  --bf-red-dim: #8f2b28;
+  /* Steel = neutral information. */
+  --bf-steel: #5f8bb5;
+}
+
+/* The map grid behind everything: faint, large, and never distracting. */
+.bf-grid-field {
+  background-color: var(--bf-bg);
+  background-image:
+    linear-gradient(rgba(95, 139, 181, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95, 139, 181, 0.055) 1px, transparent 1px),
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(95, 139, 181, 0.1) 0%,
+      transparent 60%
+    );
+  background-size:
+    64px 64px,
+    64px 64px,
+    100% 100%;
+}
+
+.bf-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+
+.bf-rule {
+  border-color: var(--bf-line);
+}
+
+/* A console panel: flat, outlined, no drop shadow. */
+.bf-panel {
+  background: var(--bf-panel);
+  border: 1px solid var(--bf-line);
+}
+
+/* Selectable cards get a left-edge marker rather than a fill, so a grid of
+   them stays readable and the selected one is unmistakable. */
+.bf-card {
+  position: relative;
+  background: var(--bf-panel);
+  border: 1px solid var(--bf-line);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.1s ease;
+  text-align: left;
+}
+.bf-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+.bf-card:hover:not(:disabled) {
+  background: var(--bf-panel-hi);
+  border-color: var(--bf-line-hi);
+}
+.bf-card:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.bf-card[data-selected="true"] {
+  border-color: var(--bf-amber-dim);
+  background: var(--bf-panel-hi);
+}
+.bf-card[data-selected="true"]::before {
+  background: var(--bf-amber);
+}
+.bf-card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The one primary action on a screen. */
+.bf-cta {
+  background: var(--bf-amber);
+  color: #17120a;
+  border: 1px solid var(--bf-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease;
+}
+.bf-cta:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.bf-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.bf-cta:disabled {
+  background: var(--bf-line);
+  border-color: var(--bf-line);
+  color: var(--bf-text-faint);
+  cursor: not-allowed;
+}
+
+/* Secondary action: outline only. */
+.bf-btn {
+  background: transparent;
+  color: var(--bf-text-dim);
+  border: 1px solid var(--bf-line);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+.bf-btn:hover:not(:disabled) {
+  color: var(--bf-text);
+  border-color: var(--bf-line-hi);
+}
+
+/* Small status pill, e.g. an era or doctrine tag. */
+.bf-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  font-size: 0.625rem;
+  border: 1px solid var(--bf-line);
+  color: var(--bf-text-dim);
+  padding: 0.05rem 0.4rem;
+}
+.bf-tag[data-tone="amber"] {
+  color: var(--bf-amber);
+  border-color: var(--bf-amber-dim);
+}
+.bf-tag[data-tone="red"] {
+  color: var(--bf-red);
+  border-color: var(--bf-red-dim);
+}

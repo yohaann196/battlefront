@@ -154,9 +154,13 @@ import {
   installSafariPinchZoomBlocker,
 } from "./utilities/DisableSafariPinchZoom";
 
+import "./battlefront/BattlefrontFooter";
+import "./battlefront/BattlefrontHome";
+import "./battlefront/BattlefrontNav";
+import "./battlefront/hud.css";
+import "./battlefront/theme.css";
 import "./components/DesktopNavBar";
 import "./components/DetailedGameViewModal";
-import "./components/Footer";
 import "./components/MainLayout";
 import "./components/MobileNavBar";
 import "./components/PlayPage";
@@ -286,9 +290,12 @@ class Client {
 
   private hostModal: HostPrivateLobbyModal;
   private joinModal: JoinLobbyModal;
-  private gameModeSelector: GameModeSelector;
+  // Absent in this build: the public-lobby browser it drove is gone.
+  private gameModeSelector: GameModeSelector | null;
   private userSettings: UserSettings = new UserSettings();
-  private storeModal: StoreModal;
+  // Absent in this build: the cosmetics store is part of the removed
+  // online layer.
+  private storeModal: StoreModal | null;
   private tokenLoginModal: TokenLoginModal;
   private matchmakingModal: MatchmakingModal;
   private rewardsModal: RewardsModal;
@@ -610,12 +617,12 @@ class Client {
       console.warn("Store modal element not found");
     }
 
-    this.storeModal.refresh();
+    this.storeModal?.refresh();
 
     window.addEventListener("showPage", (e: any) => {
       if (typeof e?.detail === "string" && e.detail === "page-play") {
         setTimeout(() => {
-          this.storeModal.refresh();
+          this.storeModal?.refresh();
         }, 50);
       }
     });
@@ -1038,7 +1045,7 @@ class Client {
         console.log(
           `CrazyGames: joining instant multiplayer lobby from CrazyGames`,
         );
-        this.hostModal.open();
+        this.hostModal?.open();
       }
     });
 
@@ -1071,8 +1078,8 @@ class Client {
         strip,
         alertAndStrip,
         alert: (message: string) => showInGameAlert(message),
-        openTokenLogin: (token) => this.tokenLoginModal.openWithToken(token),
-        refreshStore: () => this.storeModal.refresh(),
+        openTokenLogin: (token) => this.tokenLoginModal?.openWithToken(token),
+        refreshStore: () => this.storeModal?.refresh(),
         reload: () => window.location.reload(),
       });
       return;
@@ -1087,7 +1094,7 @@ class Client {
       }
 
       strip();
-      this.tokenLoginModal.openWithToken(token);
+      this.tokenLoginModal?.openWithToken(token);
       return;
     }
 
@@ -1124,7 +1131,7 @@ class Client {
       const replayGameId = window.location.pathname.slice(1);
       if (GAME_ID_REGEX.test(replayGameId)) {
         window.showPage?.("page-join-lobby");
-        this.joinModal.open({ lobbyId: replayGameId });
+        this.joinModal?.open({ lobbyId: replayGameId });
         console.log(`joining replay ${replayGameId}`);
         return;
       }
@@ -1178,7 +1185,7 @@ class Client {
         // open() reveals the inline page itself (it calls showPage internally).
         // Calling showPage first would open the modal once with no args and
         // spuriously create a lobby before this attach call runs.
-        this.hostModal.open({ existingLobbyId: lobbyId });
+        this.hostModal?.open({ existingLobbyId: lobbyId });
         console.log(`reopening host lobby ${lobbyId}`);
         return;
       }
@@ -1188,7 +1195,7 @@ class Client {
         "spectate",
       );
       window.showPage?.("page-join-lobby");
-      this.joinModal.open({ lobbyId, spectate });
+      this.joinModal?.open({ lobbyId, spectate });
       console.log(`${spectate ? "spectating" : "joining"} lobby ${lobbyId}`);
       return;
     }
@@ -1509,7 +1516,7 @@ class Client {
           modal.isModalOpen = false;
         }
       });
-      this.gameModeSelector.stop();
+      this.gameModeSelector?.stop();
       hideMenuChrome();
 
       crazyGamesSDK.loadingStart();
@@ -1525,7 +1532,7 @@ class Client {
 
     this.lobbyHandle.join.then(() => {
       this.joinModal?.closeWithoutLeaving();
-      this.gameModeSelector.stop();
+      this.gameModeSelector?.stop();
       incrementGamesPlayed();
 
       hideMenuChrome();
@@ -1742,7 +1749,7 @@ class Client {
       document.dispatchEvent(new CustomEvent("menu-restored"));
     }
 
-    if (this.joinModal.isOpen()) {
+    if (this.joinModal?.isOpen()) {
       this.joinModal.close();
       if (
         event?.detail.cause === "full-lobby" ||

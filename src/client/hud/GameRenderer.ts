@@ -1,5 +1,6 @@
 import { EventBus } from "../../core/EventBus";
 import { UserSettings } from "../../core/game/UserSettings";
+import { CommandBar } from "../battlefront/CommandBar";
 import { Controller } from "../Controller";
 import { AmbienceController } from "../controllers/AmbienceController";
 import { AttackingTroopsController } from "../controllers/AttackingTroopsController";
@@ -30,6 +31,7 @@ import { EmojiTable } from "./layers/EmojiTable";
 import { EventsDisplay } from "./layers/EventsDisplay";
 import { GameLeftSidebar } from "./layers/GameLeftSidebar";
 import { GameRightSidebar } from "./layers/GameRightSidebar";
+import { GovernmentPanel } from "./layers/GovernmentPanel";
 import { HeadsUpMessage } from "./layers/HeadsUpMessage";
 import { ImmunityTimer } from "./layers/ImmunityTimer";
 import { InGamePromo } from "./layers/InGamePromo";
@@ -160,14 +162,13 @@ export function createRenderer(
   winModal.eventBus = eventBus;
   winModal.game = game;
 
-  const newLobbyPrompt = document.querySelector(
-    "new-lobby-prompt",
-  ) as NewLobbyPrompt;
-  if (!(newLobbyPrompt instanceof NewLobbyPrompt)) {
-    console.error("new lobby prompt not found");
+  // Optional: this prompt offers the next public lobby, which a singleplayer
+  // build has nothing to point at — finishing a game returns to the menu.
+  const newLobbyPrompt = document.querySelector("new-lobby-prompt");
+  if (newLobbyPrompt instanceof NewLobbyPrompt) {
+    newLobbyPrompt.eventBus = eventBus;
+    newLobbyPrompt.game = game;
   }
-  newLobbyPrompt.eventBus = eventBus;
-  newLobbyPrompt.game = game;
 
   const replayPanel = document.querySelector("replay-panel") as ReplayPanel;
   if (!(replayPanel instanceof ReplayPanel)) {
@@ -192,6 +193,23 @@ export function createRenderer(
     console.error("settings modal not found");
   }
   settingsModal.eventBus = eventBus;
+
+  const commandBar = document.querySelector(
+    "battlefront-command-bar",
+  ) as CommandBar;
+  if (!(commandBar instanceof CommandBar)) {
+    console.error("command bar not found");
+  }
+  commandBar.game = game;
+
+  const governmentPanel = document.querySelector(
+    "government-panel",
+  ) as GovernmentPanel;
+  if (!(governmentPanel instanceof GovernmentPanel)) {
+    console.error("government panel not found");
+  }
+  governmentPanel.game = game;
+  governmentPanel.eventBus = eventBus;
 
   // The in-game settings instance needs the bus so the Audio sliders reach
   // SoundManager, which caches its volumes at construction, and UIState so the
@@ -279,13 +297,13 @@ export function createRenderer(
   }
   alertFrame.game = game;
 
-  const spawnTimer = document.querySelector("spawn-timer") as SpawnTimer;
-  if (!(spawnTimer instanceof SpawnTimer)) {
-    console.error("spawn timer not found");
+  // Optional: placement is automatic, so there is no spawn phase to count down.
+  const spawnTimer = document.querySelector("spawn-timer");
+  if (spawnTimer instanceof SpawnTimer) {
+    spawnTimer.game = game;
+    spawnTimer.eventBus = eventBus;
+    spawnTimer.transformHandler = transformHandler;
   }
-  spawnTimer.game = game;
-  spawnTimer.eventBus = eventBus;
-  spawnTimer.transformHandler = transformHandler;
 
   const immunityTimer = document.querySelector(
     "immunity-timer",
@@ -296,11 +314,11 @@ export function createRenderer(
   immunityTimer.game = game;
   immunityTimer.eventBus = eventBus;
 
-  const inGamePromo = document.querySelector("in-game-promo") as InGamePromo;
-  if (!(inGamePromo instanceof InGamePromo)) {
-    console.error("in-game promo not found");
+  // Optional: the promo slot is an ad surface, which this build does not ship.
+  const inGamePromo = document.querySelector("in-game-promo");
+  if (inGamePromo instanceof InGamePromo) {
+    inGamePromo.game = game;
   }
-  inGamePromo.game = game;
 
   const tutorialPanel = document.querySelector(
     "tutorial-panel",
@@ -336,6 +354,8 @@ export function createRenderer(
     attacksDisplay,
     chatDisplay,
     buildMenu,
+    governmentPanel,
+    commandBar,
     new MainRadialMenu(
       eventBus,
       game,
@@ -345,7 +365,7 @@ export function createRenderer(
       uiState,
       playerPanel,
     ),
-    spawnTimer,
+    ...(spawnTimer instanceof SpawnTimer ? [spawnTimer] : []),
     immunityTimer,
     gameLeftSidebar,
     unitDisplay,
@@ -353,13 +373,13 @@ export function createRenderer(
     controlPanel,
     playerInfo,
     winModal,
-    newLobbyPrompt,
+    ...(newLobbyPrompt instanceof NewLobbyPrompt ? [newLobbyPrompt] : []),
     replayPanel,
     settingsModal,
     playerPanel,
     headsUpMessage,
     multiTabModal,
-    inGamePromo,
+    ...(inGamePromo instanceof InGamePromo ? [inGamePromo] : []),
     tutorialPanel,
     alertFrame,
     performanceOverlay,

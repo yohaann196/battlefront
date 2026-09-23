@@ -1,14 +1,17 @@
 import { Config } from "../configuration/Config";
 import {
+  CapturableStructures,
   Cell,
   Execution,
   Game,
+  MessageType,
   Player,
   PlayerType,
   Structures,
   UnitType,
 } from "../game/Game";
 import { GameMap, TileRef } from "../game/GameMap";
+import { RESEARCH_LEVELS } from "../game/Research";
 import {
   bumpTraversalGeneration,
   tileTraversalScratch,
@@ -60,10 +63,13 @@ export class PlayerExecution implements Execution {
       }
 
       const captor = this.mg!.player(owner.id());
-      if (u.type() === UnitType.DefensePost) {
-        u.delete(true, captor);
-      } else {
+      // Buildings that are useful to whoever holds the ground change hands;
+      // purely tactical emplacements (posts, artillery) are destroyed rather
+      // than handing the attacker the very thing that slowed them down.
+      if (CapturableStructures.has(u.type())) {
         captor.captureUnit(u);
+      } else {
+        u.delete(true, captor);
       }
     }
 
@@ -91,6 +97,8 @@ export class PlayerExecution implements Execution {
 
     // Record stats
     this.mg.stats().goldWork(this.player, goldFromWorkers);
+
+    this.tickResearch();
 
     for (const alliance of this.player.alliances()) {
       if (alliance.expiresAt() <= this.mg.ticks()) {
@@ -121,6 +129,35 @@ export class PlayerExecution implements Execution {
           console.log(`player ${this.player.name()}, took ${end - start}ms`);
         }
       }
+    }
+  }
+
+  /**
+   * Research labs turn gold-in-the-ground into technology every tick. Each
+   * level crossed is announced, because a new unlock changes what the player
+   * should be doing next.
+   */
+  private tickResearch() {
+    const points = this.config.researchPointsPerTick(this.player);
+    if (points <= 0) {
+      return;
+    }
+    const before = this.player.researchLevel();
+    this.player.addResearchPoints(points);
+    const after = this.player.researchLevel();
+    for (let level = before + 1; level <= after; level++) {
+      const entry = RESEARCH_LEVELS[level - 1];
+      if (entry === undefined) continue;
+      this.mg.displayMessage(
+        "events_display.research_unlocked",
+        MessageType.RESEARCH_UNLOCKED,
+        this.player.id(),
+        undefined,
+        {
+          level,
+          name: `research.level_${entry.key}.name`,
+        },
+      );
     }
   }
 

@@ -1,151 +1,85 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="proprietary/images/OpenFrontLogoDark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="proprietary/images/OpenFrontLogo.svg">
-    <img src="proprietary/images/OpenFrontLogo.svg" alt="OpenFrontIO Logo" width="300">
-  </picture>
-</p>
+# Battlefront
 
-[OpenFront.io](https://openfront.io/) is an online real-time strategy game focused on territorial control and alliance building. Players compete to expand their territory, build structures, and form strategic alliances in various maps based on real-world geography.
+A singleplayer real-time strategy game about running a nation, not just
+painting a map. Pick a theatre, take command of a historical power, choose the
+economic system you will run it under, and fight the AI for it.
 
-This is a fork/rewrite of WarFront.io. Credit to https://github.com/WarFrontIO.
+**Play it: https://yohaann196.github.io/battlefront/**
 
-![CI](https://github.com/openfrontio/OpenFrontIO/actions/workflows/ci.yml/badge.svg)
-[![Crowdin](https://badges.crowdin.net/openfront-mls/localized.svg)](https://crowdin.com/project/openfront-mls)
-[![CLA assistant](https://cla-assistant.io/readme/badge/openfrontio/OpenFrontIO)](https://cla-assistant.io/openfrontio/OpenFrontIO)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Assets: CC BY-SA 4.0](https://img.shields.io/badge/Assets-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
+No account, no lobby, no server — the simulation runs entirely in your browser.
 
-## License
+## What you actually decide
 
-OpenFront source code is licensed under the **GNU Affero General Public License v3.0**
+**Doctrine.** Every nation runs one of four economic systems, and each is a
+real trade-off rather than a flavour text:
 
-Current copyright notices appear in:
+| Doctrine        | Gains                                          | Costs                                   |
+| --------------- | ---------------------------------------------- | --------------------------------------- |
+| **Capitalism**  | +25% gold, +15% trade, cheaper industry        | −10% troop growth, costlier military    |
+| **Communism**   | +25% troop growth, +20% cap, +10% defense      | −15% gold, −25% trade, costlier industry |
+| **Militarism**  | +15% attack, −25% military building cost       | −10% gold, −15% research                |
+| **Technocracy** | +50% research, −30% lab cost, +5% defense      | −10% troop growth and cap, −5% attack   |
 
-- Footer: "© OpenFront and Contributors"
-- Loading screen: "© OpenFront and Contributors"
+Switching mid-game costs a flat sum plus half your treasury, and the new
+government's benefits do not apply for two minutes while it reorganises. It is
+a pivot you plan, not a reaction.
 
-Modified versions must preserve these notices in reasonably visible locations.
+**Research.** Research labs generate points on their own. Seven levels unlock
+in order — conscription, doctrine, fortification, rocketry, then the nuclear
+ladder. Nuclear weapons additionally require a minimum number of labs, so you
+cannot reach them on one upgraded building.
 
-See the [LICENSE](LICENSE) for complete requirements.
+**Force structure.** Alongside the usual cities and ports there are barracks
+(troop ceiling and recruitment), artillery (attacks into its range cost fewer
+troops), fortresses (a defense post that actually holds a line), and research
+labs. The economy buildings are deliberately weaker than in the game this is
+built on: they fund an army rather than win on their own.
 
-For asset licensing, see [LICENSE-ASSETS](LICENSE-ASSETS).  
-For license history, see [LICENSING.md](LICENSING.md).
+**Nuclear weapons are a decision, not a purchase.** They are research-gated and
+cost several times what they used to, and using one has consequences that
+outlast the blast: every nation that is not your ally turns hostile, your
+income is halved and your defenses weakened for five minutes, and you are
+branded a pariah. The game warns you before you commit.
 
-## 🌟 Features
+## Theatres
 
-- **Real-time Strategy Gameplay**: Expand your territory and engage in strategic battles
-- **Alliance System**: Form alliances with other players for mutual defense
-- **Multiple Maps**: Play across various geographical regions including Europe, Asia, Africa, and more
-- **Resource Management**: Balance your expansion with defensive capabilities
-- **Cross-platform**: Play in any modern web browser
+| Scenario            | Map    | Notes                                              |
+| ------------------- | ------ | -------------------------------------------------- |
+| **Modern World**    | World  | Today's nations and arsenals, free-for-all          |
+| **World War II**    | Europe | Axis / Allies / Neutral, fission only               |
+| **World War I**     | Europe | Central Powers / Entente, no rockets or warheads    |
+| **Empires of 1500** | World  | Age of sail; no industry, no rocketry               |
+| **Mongol Conquest** | Asia   | Ride out of the steppe; horse archers and siege     |
 
-## 📋 Prerequisites
+You pick a power and deploy onto its own ground — the United States does not
+start in Germany. Each scenario caps the technology of its era.
 
-- [npm](https://www.npmjs.com/) (v10.9.2 or higher)
-- A modern web browser (Chrome, Firefox, Edge, etc.)
-
-## 🚀 Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/openfrontio/OpenFrontIO.git
-   cd OpenFrontIO
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm run inst
-   ```
-
-   Do NOT use `npm install` nor `npm i` but instead use our `npm run inst`. It runs the safer `npm ci --ignore-scripts` to install dependencies exactly according to the versions in `package-lock.json` and doesn't run scripts. This can prevent being hit by a supply chain attack.
-
-## 🎮 Running the Game
-
-### Development Mode
-
-Run both the client and server in development mode with live reloading:
+## Running it locally
 
 ```bash
-npm run dev
+npm run inst   # npm ci --ignore-scripts — do NOT use npm install
+npm run dev    # http://localhost:9000
 ```
-
-This will:
-
-- Start the webpack dev server for the client
-- Launch the game server with development settings
-- Open the game in your default browser (to disable this behavior, set `SKIP_BROWSER_OPEN=true` in your environment)
-
-### Client Only
-
-To run just the client with hot reloading:
 
 ```bash
-npm run start:client
+npm test       # Vitest
+npm run lint
 ```
 
-### Server Only
-
-To run just the server with development settings:
+Build the static site (what GitHub Pages serves):
 
 ```bash
-npm run start:server-dev
+npm run build-pages
 ```
 
-### Connecting to staging or production backends
+## Credits and licence
 
-Sometimes it's useful to connect to production servers when replaying a game, testing user profiles, purchases, or login flow.
+Battlefront is built on [OpenFront](https://github.com/openfrontio/OpenFrontIO)
+and is a derivative work of it. **© OpenFront and Contributors.**
 
-> To replay a production game, make sure you're on the same commit that the game you want to replay was executed on, you can find the `gitCommit` value via `https://api.openfront.io/game/[gameId]`.
-> Unfinished games cannot be replayed on localhost.
+Source code is licensed under the **GNU AGPL v3.0** — see [LICENSE](LICENSE).
+Assets are licensed under **CC BY-SA 4.0** — see
+[LICENSE-ASSETS](LICENSE-ASSETS) and [CREDITS.md](CREDITS.md).
 
-To connect to staging api servers:
-
-```bash
-npm run dev:staging
-```
-
-To connect to production api servers:
-
-```bash
-npm run dev:prod
-```
-
-## 🛠️ Development Tools
-
-- **Format code**:
-
-  ```bash
-  npm run format
-  ```
-
-- **Lint code with Oxlint and ESLint**:
-
-  ```bash
-  npm run lint
-  ```
-
-- **Lint and fix code with Oxlint and ESLint**:
-
-  ```bash
-  npm run lint:fix
-  ```
-
-- **Testing**
-  ```bash
-  npm test
-  ```
-
-## 🏗️ Project Structure
-
-- `/src/client` - Frontend game client
-- `/src/core` - Deterministic game simulation
-- `/src/server` - Backend game server
-- `/resources` - Static assets (images, maps, etc.)
-- `/zbin` - Compact binary wire format for zod schemas (self-contained, zod-only)
-
-## 🤝 Contributing
-
-Contributions and translations are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, the approved-issue process, project governance, and translation info.
+As a derivative work this repository keeps the upstream copyright notices, and
+the game itself displays them in the footer and on the loading screen.

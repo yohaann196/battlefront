@@ -91,6 +91,7 @@
     "highlightFillBrighten": 0.15,
     "highlightThicken": 1,
     "defensePostRange": 30,
+    "fortressRange": 45,
     "embargoTintRatio": 0.35,
     "friendlyTintRatio": 0.35,
     "embargoTintR": 1,
@@ -151,6 +152,22 @@
       "Missile Silo": {
         "scale": 1.55,
         "iconFill": 0.85
+      },
+      "Barracks": {
+        "scale": 1.05,
+        "iconFill": 0.85
+      },
+      "Artillery": {
+        "scale": 1.15,
+        "iconFill": 0.9
+      },
+      "Fortress": {
+        "scale": 1.35,
+        "iconFill": 0.85
+      },
+      "Research Lab": {
+        "scale": 1.05,
+        "iconFill": 0.9
       }
     },
     "highlightOutlineWidth": 0.04,

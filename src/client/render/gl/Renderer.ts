@@ -29,6 +29,7 @@ import type {
   TerrainRect,
   UnitState,
 } from "../types";
+import { UT_DEFENSE_POST, UT_FORTRESS } from "../types";
 import { Camera } from "./Camera";
 import { GLUnavailableError, initGL } from "./initGL";
 import { BarPass } from "./passes/BarPass";
@@ -954,14 +955,24 @@ export class GPURenderer {
     this.structureLevelPass.updateStructures(units);
     this.samRadiusPass.updateStructures(units);
     this.unitPass.setStructures(units);
-    const posts: { x: number; y: number; ownerID: number }[] = [];
+    // Both fortifications feed the coverage overlay; a fortress simply
+    // protects a wider circle, which it carries per-instance.
+    const overlay = this.settings.mapOverlay;
+    const ranges: Record<string, number> = {
+      [UT_DEFENSE_POST]: overlay.defensePostRange,
+      [UT_FORTRESS]: overlay.fortressRange,
+    };
+    const posts: { x: number; y: number; ownerID: number; range: number }[] =
+      [];
     const w = this.mapW;
     for (const u of units.values()) {
-      if (u.unitType === "Defense Post" && !u.underConstruction) {
+      const range = ranges[u.unitType];
+      if (range !== undefined && !u.underConstruction) {
         posts.push({
           x: u.pos % w,
           y: (u.pos - (u.pos % w)) / w,
           ownerID: u.ownerID,
+          range,
         });
       }
     }

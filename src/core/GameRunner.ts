@@ -3,6 +3,7 @@ import { Config } from "./configuration/Config";
 import { DoomsdayClockExecution } from "./execution/DoomsdayClockExecution";
 import { Executor } from "./execution/ExecutionManager";
 import { RecomputeRailClusterExecution } from "./execution/RecomputeRailClusterExecution";
+import { ScenarioSpawnExecution } from "./execution/ScenarioSpawnExecution";
 import { SpawnTimerExecution } from "./execution/SpawnTimerExecution";
 import { WinCheckExecution } from "./execution/WinCheckExecution";
 import {
@@ -26,7 +27,12 @@ import { createGame } from "./game/GameImpl";
 import { TileRef } from "./game/GameMap";
 import { GameMapLoader } from "./game/GameMapLoader";
 import { ErrorUpdate, GameUpdateViewData } from "./game/GameUpdates";
-import { createNationsForGame } from "./game/NationCreation";
+import {
+  createNationsForGame,
+  scenarioFactionCell,
+  scenarioFactionFlag,
+} from "./game/NationCreation";
+import { getScenario, scenarioFaction } from "./game/Scenarios";
 import { loadTerrainMap as loadGameMap } from "./game/TerrainMapLoader";
 import { PseudoRandom } from "./PseudoRandom";
 import { ClientID, GameStartInfo, Turn } from "./Schemas";
@@ -47,7 +53,41 @@ export async function createGameRunner(
   );
   const random = new PseudoRandom(simpleHash(gameStart.gameID));
 
+  // In a scenario the player is a specific historical power: they take that
+  // faction's name, flag, government, technology and army size instead of
+  // their lobby identity.
+  const chosenScenario = gameStart.config.scenario;
+  const scenario =
+    chosenScenario === undefined ? null : getScenario(chosenScenario.id);
+  const faction =
+    scenario === null
+      ? null
+      : scenarioFaction(scenario, chosenScenario!.faction);
+  const manifestByName = new Map(gameMap.nations.map((n) => [n.name, n]));
+
   const humans = gameStart.players.map((p) => {
+    if (faction !== null) {
+      return new PlayerInfo(
+        faction.name,
+        PlayerType.Human,
+        p.clientID,
+        random.nextID(),
+        p.isLobbyCreator ?? false,
+        p.clanTag,
+        p.friends ?? [],
+        null,
+        scenarioFactionFlag(faction, manifestByName),
+        {
+          // The lobby's ideology choice wins when the player made one;
+          // otherwise they inherit the faction's historical system.
+          ideology: p.ideology ?? faction.ideology,
+          team: faction.team,
+          researchLevel: faction.researchLevel,
+          strength: faction.strength,
+          startingGold: faction.startingGold,
+        },
+      );
+    }
     return new PlayerInfo(
       p.username,
       PlayerType.Human,
@@ -57,6 +97,8 @@ export async function createGameRunner(
       p.clanTag,
       p.friends ?? [],
       p.teamIndex ?? null,
+      null,
+      p.ideology === undefined ? null : { ideology: p.ideology },
     );
   });
 
@@ -76,6 +118,20 @@ export async function createGameRunner(
     config,
     gameMap.teamGameSpawnAreas,
   );
+
+  // Seat the player on their faction's homeland (see
+  // ScenarioSpawnExecution for why this is an execution rather than a
+  // direct spawn here).
+  if (faction !== null) {
+    const cell = scenarioFactionCell(faction, manifestByName);
+    if (cell !== null) {
+      for (const info of humans) {
+        game.addExecution(
+          new ScenarioSpawnExecution(gameStart.gameID, info, cell),
+        );
+      }
+    }
+  }
 
   const gr = new GameRunner(
     game,

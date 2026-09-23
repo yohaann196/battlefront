@@ -147,6 +147,7 @@ ctx.addEventListener("message", async (e: MessageEvent<MainThreadMessage>) => {
         // Set before createGameRunner so map fetches via mapLoader pick up the
         // CDN base. Workers have no `window`, so AssetUrls falls back to this.
         globalThis.__CDN_BASE__ = message.cdnBase;
+        globalThis.__ASSET_MANIFEST__ = message.assetManifest;
         gameRunner = createGameRunner(
           message.gameStartInfo,
           message.clientID,
@@ -323,5 +324,12 @@ ctx.addEventListener("error", (error) => {
 });
 
 ctx.addEventListener("unhandledrejection", (event) => {
-  console.error("Unhandled promise rejection in worker:", event);
+  // Log the reason, not the event: the event stringifies to
+  // "[object PromiseRejectionEvent]", which says nothing about what failed
+  // and makes a worker that dies during init effectively undebuggable.
+  const reason = (event as PromiseRejectionEvent).reason;
+  console.error(
+    "Unhandled promise rejection in worker:",
+    reason instanceof Error ? (reason.stack ?? reason.message) : reason,
+  );
 });

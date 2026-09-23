@@ -11,11 +11,13 @@ import {
   AllPlayers,
   GameType,
   Gold,
+  Nukes,
   PlayerID,
   Tick,
   UnitType,
 } from "../core/game/Game";
 import { TileRef } from "../core/game/GameMap";
+import { Ideology } from "../core/game/Ideology";
 import {
   AllPlayersStats,
   ClientHashMessage,
@@ -109,6 +111,10 @@ export class BuildUnitIntentEvent implements GameEvent {
     public readonly rocketDirectionUp?: boolean,
     public readonly amount?: number,
   ) {}
+}
+
+export class SendSetIdeologyIntentEvent implements GameEvent {
+  constructor(public readonly ideology: Ideology) {}
 }
 
 export class SendTargetPlayerIntentEvent implements GameEvent {
@@ -315,6 +321,9 @@ export class Transport {
       this.onSendEmbargoAllIntent(e),
     );
     this.subscribe(BuildUnitIntentEvent, (e) => this.onBuildUnitIntent(e));
+    this.subscribe(SendSetIdeologyIntentEvent, (e) =>
+      this.onSendSetIdeologyIntent(e),
+    );
 
     this.subscribe(PauseGameIntentEvent, (e) => this.onPauseGameIntent(e));
     this.subscribe(SendWinnerEvent, (e) => this.onSendWinnerEvent(e));
@@ -823,13 +832,36 @@ export class Transport {
   }
 
   private onBuildUnitIntent(event: BuildUnitIntentEvent) {
-    this.sendIntent({
-      type: "build_unit",
-      unit: event.unit,
-      tile: event.tile,
-      rocketDirectionUp: event.rocketDirectionUp,
-      amount: event.amount,
-    });
+    const send = () =>
+      this.sendIntent({
+        type: "build_unit",
+        unit: event.unit,
+        tile: event.tile,
+        rocketDirectionUp: event.rocketDirectionUp,
+        amount: event.amount,
+      });
+
+    // Every path that can order a nuclear strike — build menu, radial menu,
+    // ghost preview — funnels through this event, so one confirmation here
+    // covers all of them. Replays must never prompt.
+    if (Nukes.has(event.unit) && !this.isReplay()) {
+      void showInGameConfirm(translateText("nuke.confirm_body"), {
+        heading: translateText("nuke.confirm_title"),
+        confirmText: translateText("nuke.confirm_launch"),
+      }).then((confirmed) => {
+        if (confirmed) send();
+      });
+      return;
+    }
+    send();
+  }
+
+  private isReplay(): boolean {
+    return this.lobbyConfig.gameRecord !== undefined;
+  }
+
+  private onSendSetIdeologyIntent(event: SendSetIdeologyIntentEvent) {
+    this.sendIntent({ type: "set_ideology", ideology: event.ideology });
   }
 
   private onPauseGameIntent(event: PauseGameIntentEvent) {

@@ -17,6 +17,7 @@ import {
   WarshipState,
 } from "./Game";
 import { TileRef } from "./GameMap";
+import { Ideology } from "./Ideology";
 
 export interface GameUpdateViewData {
   tick: number;
@@ -256,6 +257,18 @@ export interface PlayerUpdate {
   embargoes?: Set<PlayerID>;
   isTraitor?: boolean;
   traitorRemainingTicks?: number;
+  /** Current government. */
+  ideology?: Ideology;
+  /** Ticks left where a freshly-switched government gets only the penalties. */
+  ideologyTransitionRemainingTicks?: number;
+  /** False until the player first commits to a government (first switch is free). */
+  hasChosenIdeology?: boolean;
+  researchPoints?: number;
+  researchLevel?: number;
+  /** Finished research labs counted by level (gates nuclear weapons). */
+  researchLabLevels?: number;
+  /** Ticks left of the sanctions that follow a nuclear launch (0 = none). */
+  nukePenaltyRemainingTicks?: number;
   inDoomsdayClock?: boolean;
   isDecaying?: boolean;
   markedDoomsdayClockTick?: number;

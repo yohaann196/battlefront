@@ -53,6 +53,14 @@ export function diffPlayerUpdate(
     prev.piracyGold === next.piracyGold &&
     prev.isTraitor === next.isTraitor &&
     prev.traitorRemainingTicks === next.traitorRemainingTicks &&
+    prev.ideology === next.ideology &&
+    prev.ideologyTransitionRemainingTicks ===
+      next.ideologyTransitionRemainingTicks &&
+    prev.hasChosenIdeology === next.hasChosenIdeology &&
+    prev.researchPoints === next.researchPoints &&
+    prev.researchLevel === next.researchLevel &&
+    prev.researchLabLevels === next.researchLabLevels &&
+    prev.nukePenaltyRemainingTicks === next.nukePenaltyRemainingTicks &&
     prev.inDoomsdayClock === next.inDoomsdayClock &&
     prev.markedDoomsdayClockTick === next.markedDoomsdayClockTick &&
     prev.isDecaying === next.isDecaying &&
@@ -110,6 +118,26 @@ export function diffPlayerUpdate(
   setIfDifferent(
     "traitorRemainingTicks",
     prev.traitorRemainingTicks === next.traitorRemainingTicks,
+  );
+  setIfDifferent("ideology", prev.ideology === next.ideology);
+  setIfDifferent(
+    "ideologyTransitionRemainingTicks",
+    prev.ideologyTransitionRemainingTicks ===
+      next.ideologyTransitionRemainingTicks,
+  );
+  setIfDifferent(
+    "hasChosenIdeology",
+    prev.hasChosenIdeology === next.hasChosenIdeology,
+  );
+  setIfDifferent("researchPoints", prev.researchPoints === next.researchPoints);
+  setIfDifferent("researchLevel", prev.researchLevel === next.researchLevel);
+  setIfDifferent(
+    "researchLabLevels",
+    prev.researchLabLevels === next.researchLabLevels,
+  );
+  setIfDifferent(
+    "nukePenaltyRemainingTicks",
+    prev.nukePenaltyRemainingTicks === next.nukePenaltyRemainingTicks,
   );
   setIfDifferent(
     "inDoomsdayClock",
@@ -186,6 +214,28 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
   if (pu.isTraitor !== undefined) target.isTraitor = pu.isTraitor;
   if (pu.traitorRemainingTicks !== undefined) {
     target.traitorRemainingTicks = Math.max(0, pu.traitorRemainingTicks);
+  }
+  if (pu.ideology !== undefined) target.ideology = pu.ideology;
+  if (pu.ideologyTransitionRemainingTicks !== undefined) {
+    target.ideologyTransitionRemainingTicks = Math.max(
+      0,
+      pu.ideologyTransitionRemainingTicks,
+    );
+  }
+  if (pu.hasChosenIdeology !== undefined) {
+    target.hasChosenIdeology = pu.hasChosenIdeology;
+  }
+  if (pu.researchPoints !== undefined)
+    target.researchPoints = pu.researchPoints;
+  if (pu.researchLevel !== undefined) target.researchLevel = pu.researchLevel;
+  if (pu.researchLabLevels !== undefined) {
+    target.researchLabLevels = pu.researchLabLevels;
+  }
+  if (pu.nukePenaltyRemainingTicks !== undefined) {
+    target.nukePenaltyRemainingTicks = Math.max(
+      0,
+      pu.nukePenaltyRemainingTicks,
+    );
   }
   if (pu.inDoomsdayClock !== undefined)
     target.inDoomsdayClock = pu.inDoomsdayClock;

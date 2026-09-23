@@ -1,0 +1,59 @@
+# Publishes Battlefront to GitHub Pages.
+#
+# The game is singleplayer and the simulation runs in the browser, so the
+# whole thing ships as static files — no server, no database, nothing to
+# operate. `npm run build-pages` produces static/ (see scripts/buildPages.ts).
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-publish from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue instead, and let a run in progress finish
+# so a half-published site is never live.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Matches the repo's own install policy: exact lockfile versions, no
+      # lifecycle scripts.
+      - run: npm ci --ignore-scripts
+
+      - name: Build the static site
+        # The site lives at https://<user>.github.io/<repo>/, so every URL it
+        # emits has to carry that prefix.
+        run: PAGES_BASE="/${GITHUB_REPOSITORY#*/}" npm run build-pages
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: static
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

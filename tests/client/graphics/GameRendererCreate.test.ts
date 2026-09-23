@@ -30,6 +30,8 @@ const HUD_TAGS = [
   "replay-panel",
   "game-right-sidebar",
   "settings-modal",
+  "government-panel",
+  "battlefront-command-bar",
   "graphics-settings-modal",
   "unit-display",
   "player-panel",

@@ -120,8 +120,10 @@ describe("Donate gold to an ally", () => {
     game.executeNextTick();
     game.executeNextTick();
 
-    // 1 tick elapsed; PlayerExecution adds 100n passive income from workers
-    const passiveIncome = 100n;
+    // 1 tick elapsed; PlayerExecution adds passive worker income. The base
+    // rate is 100n, scaled by the donor's government (Capitalism by
+    // default: +25%).
+    const passiveIncome = 125n;
     expect(donor.gold()).toBe(donorGoldBefore - 5000n + passiveIncome);
     expect(recipient.gold()).toBe(recipientGoldBefore + 5000n + passiveIncome);
   });
@@ -151,7 +153,7 @@ describe("Donate gold to an ally", () => {
     game.executeNextTick();
     game.executeNextTick();
     // 1 tick elapsed for donation transfer; PlayerExecution adds 100n passive income from workers
-    const passiveIncome = 100n;
+    const passiveIncome = 125n;
     const expectedDonation = goldBefore / 3n;
     expect(donor.gold()).toBe(goldBefore - expectedDonation + passiveIncome);
     expect(recipient.gold()).toBe(recBefore + expectedDonation + passiveIncome);

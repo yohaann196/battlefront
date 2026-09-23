@@ -1,4 +1,4 @@
-import { getCdnBase } from "../AssetUrls";
+import { getAssetManifest, getWorkerCdnBase } from "../AssetUrls";
 import {
   BuildableUnit,
   Cell,
@@ -93,7 +93,8 @@ export class WorkerClient {
         id: messageId,
         gameStartInfo: this.gameStartInfo,
         clientID: this.clientID,
-        cdnBase: getCdnBase(),
+        cdnBase: getWorkerCdnBase(),
+        assetManifest: getAssetManifest(),
       });
 
       setTimeout(() => {

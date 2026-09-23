@@ -1,3 +1,4 @@
+import { AssetManifest } from "../AssetUrls";
 import {
   BuildableUnit,
   PlayerActions,
@@ -43,6 +44,16 @@ export interface InitMessage extends BaseWorkerMessage {
   gameStartInfo: GameStartInfo;
   clientID: ClientID | undefined;
   cdnBase: string;
+  /**
+   * The page's hashed-asset manifest.
+   *
+   * The worker cannot read window.BOOTSTRAP_CONFIG, and the build-time
+   * __ASSET_MANIFEST__ define is captured before the hashed manifest exists,
+   * so it arrives empty in a production bundle. Without this the worker
+   * resolves every asset to an unhashed, un-based path — which 404s on any
+   * deployment not served from the domain root.
+   */
+  assetManifest: AssetManifest;
 }
 
 export interface TurnMessage extends BaseWorkerMessage {

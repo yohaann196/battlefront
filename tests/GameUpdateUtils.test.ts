@@ -11,6 +11,7 @@ import {
   GameUpdateType,
   PlayerUpdate,
 } from "../src/core/game/GameUpdates";
+import { Ideology } from "../src/core/game/Ideology";
 import { makePlayerUpdate } from "./util/viewStubs";
 
 function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -22,6 +23,13 @@ function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
     deathPosition: null,
     tilesOwned: 0,
     gold: 0,
+    ideology: Ideology.Capitalism,
+    ideologyTransitionRemainingTicks: 0,
+    hasChosenIdeology: false,
+    researchPoints: 0,
+    researchLevel: 0,
+    researchLabLevels: 0,
+    nukePenaltyRemainingTicks: 0,
     tradeGold: 0,
     trainGold: 0,
     piracyGold: 0,

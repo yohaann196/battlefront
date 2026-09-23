@@ -3,7 +3,6 @@ import {
   Cell,
   GameUpdates,
   PlayerID,
-  PlayerType,
   Team,
   TerrainType,
   TerraNullius,
@@ -357,7 +356,15 @@ export class GameView implements GameMap {
       // Replace the local player's name/displayName with their own stored values.
       // This way the user does not know they are being censored. clientID is
       // static — present only on first emission — so this branch only runs once.
-      if (pu.clientID !== undefined && pu.clientID === this._myClientID) {
+      //
+      // A scenario is the exception: there the simulation deliberately gave
+      // the player a faction identity ("Germany"), which is the name they
+      // chose in the lobby and expect to see.
+      if (
+        pu.clientID !== undefined &&
+        pu.clientID === this._myClientID &&
+        this._config.scenario() === null
+      ) {
         pu.name = this._myUsername;
         pu.displayName = myDisplayName;
         pu.clanTag = this._myClanTag;
@@ -393,7 +400,9 @@ export class GameView implements GameMap {
           // being looked up by name — some maps define multiple nations with
           // the same display name (e.g. India's and Pakistan's "Punjab").
           this._cosmetics.get(pu.clientID ?? "") ??
-            (pu.playerType === PlayerType.Nation && pu.nationFlag
+            // A scenario seats the human as a historical faction, which
+            // carries its own flag the same way a nation does.
+            (pu.nationFlag
               ? ({
                   flag: `/flags/${pu.nationFlag}.svg`,
                 } satisfies PlayerCosmetics)

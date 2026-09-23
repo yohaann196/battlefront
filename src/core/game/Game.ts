@@ -10,6 +10,7 @@ import {
   PlayerUpdate,
   UnitUpdate,
 } from "./GameUpdates";
+import { Ideology } from "./Ideology";
 import { MotionPlanRecord } from "./MotionPlans";
 import { RailNetwork } from "./RailNetwork";
 import { Stats } from "./Stats";
@@ -208,6 +209,13 @@ export enum UnitType {
   MIRVWarhead = "MIRV Warhead",
   Train = "Train",
   Factory = "Factory",
+  // Mod additions. Appended at the end on purpose: the enum's declaration
+  // order is the zbin wire ordinal (zbin/README.md), so inserting anywhere
+  // else would silently reinterpret existing values.
+  Barracks = "Barracks",
+  Artillery = "Artillery",
+  Fortress = "Fortress",
+  ResearchLab = "Research Lab",
 }
 
 export enum TrainType {
@@ -237,6 +245,41 @@ export const Structures = unitTypeGroup([
   UnitType.MissileSilo,
   UnitType.Port,
   UnitType.Factory,
+  UnitType.Barracks,
+  UnitType.Artillery,
+  UnitType.Fortress,
+  UnitType.ResearchLab,
+] as const);
+
+// Cost classes. An ideology makes one kind of building cheaper and another
+// dearer (see IDEOLOGY_MODIFIERS), so every priced structure belongs to
+// exactly one of these three groups.
+export const MilitaryStructures = unitTypeGroup([
+  UnitType.DefensePost,
+  UnitType.SAMLauncher,
+  UnitType.MissileSilo,
+  UnitType.Barracks,
+  UnitType.Artillery,
+  UnitType.Fortress,
+  UnitType.Warship,
+] as const);
+
+export const EconomicStructures = unitTypeGroup([
+  UnitType.City,
+  UnitType.Port,
+  UnitType.Factory,
+] as const);
+
+/** Structures that survive conquest by changing hands (the rest are razed). */
+export const CapturableStructures = unitTypeGroup([
+  UnitType.City,
+  UnitType.Port,
+  UnitType.Factory,
+  UnitType.SAMLauncher,
+  UnitType.MissileSilo,
+  UnitType.Barracks,
+  UnitType.Fortress,
+  UnitType.ResearchLab,
 ] as const);
 
 export const BuildMenus = unitTypeGroup([
@@ -317,6 +360,14 @@ export interface UnitParamsMap {
   [UnitType.SAMLauncher]: Record<string, never>;
 
   [UnitType.City]: Record<string, never>;
+
+  [UnitType.Barracks]: Record<string, never>;
+
+  [UnitType.Artillery]: Record<string, never>;
+
+  [UnitType.Fortress]: Record<string, never>;
+
+  [UnitType.ResearchLab]: Record<string, never>;
 }
 
 // Type helper to get params type for a specific unit type
@@ -433,6 +484,22 @@ export interface MutableAlliance extends Alliance {
   agreedToExtend(player: Player): boolean;
 }
 
+/**
+ * What a player starts the game holding. Scenarios use every field to seat a
+ * historical faction; ordinary games only ever set `ideology`.
+ */
+export interface PlayerPreset {
+  ideology?: Ideology;
+  /** Pre-assigned team (scenario alliances like "Axis"/"Allies"). */
+  team?: Team;
+  /** Research level to start at; points are seeded to its threshold. */
+  researchLevel?: number;
+  /** Multiplier on starting troops — how dominant this faction begins. */
+  strength?: number;
+  /** Extra gold on top of the lobby's starting gold. */
+  startingGold?: number;
+}
+
 export class PlayerInfo {
   public readonly displayName: string;
 
@@ -454,6 +521,10 @@ export class PlayerInfo {
     // the correct flag even when multiple nations on a map share a display
     // name (e.g. India's and Pakistan's "Punjab").
     public readonly nationFlag: string | null = null,
+    // Starting loadout, used by scenarios to seat a faction with its own
+    // government, tech and army size, and by nation/tribe creation to pick
+    // an ideology. null means "plain defaults".
+    public readonly preset: PlayerPreset | null = null,
   ) {
     this.displayName = formatPlayerDisplayName(this.name, this.clanTag);
   }
@@ -600,8 +671,34 @@ export interface Player {
 
   // State & Properties
   isAlive(): boolean;
+  /**
+   * True while the player is shunned by the world — either for betraying an
+   * alliance or for launching a nuclear weapon. Drives the traitor icon, the
+   * AI's willingness to attack, and alliance refusals.
+   */
   isTraitor(): boolean;
+  /** Traitor specifically by breaking an alliance (carries the combat debuff). */
+  isAllianceTraitor(): boolean;
   markTraitor(): void;
+
+  // Government & research
+  ideology(): Ideology;
+  setIdeology(ideology: Ideology): void;
+  /** Tick of the last switch; -1 when the player has never chosen one. */
+  ideologyChangedTick(): Tick;
+  /** Ticks left in the post-switch window where only the penalties apply. */
+  ideologyTransitionRemainingTicks(): number;
+  researchPoints(): number;
+  addResearchPoints(points: number): void;
+  researchLevel(): number;
+  /** Finished research labs, counted by level (an upgraded lab counts more). */
+  researchLabLevels(): number;
+
+  // Nuclear sanctions
+  /** Flag the player as having launched a nuke, starting the penalty window. */
+  markNuclearPariah(): void;
+  isNuclearPariah(): boolean;
+  nukePenaltyRemainingTicks(): number;
   // Doomsday Clock (anti-stall): marked when below the rising territory bar.
   inDoomsdayClock(): boolean;
   /** Territory is actively rotting away (the final doomsday phase). */
@@ -1052,6 +1149,9 @@ export enum MessageType {
   DONATION_RECEIVED,
   CHAT,
   RENEW_ALLIANCE,
+  RESEARCH_UNLOCKED,
+  IDEOLOGY_CHANGED,
+  NUKE_SANCTIONS,
 }
 
 // Message categories used for filtering events in the EventsDisplay
@@ -1084,6 +1184,9 @@ export const MESSAGE_TYPE_CATEGORIES: Record<MessageType, MessageCategory> = {
   [MessageType.ALLIANCE_BROKEN]: MessageCategory.ALLIANCE,
   [MessageType.ALLIANCE_EXPIRED]: MessageCategory.ALLIANCE,
   [MessageType.RENEW_ALLIANCE]: MessageCategory.ALLIANCE,
+  [MessageType.RESEARCH_UNLOCKED]: MessageCategory.TRADE,
+  [MessageType.IDEOLOGY_CHANGED]: MessageCategory.TRADE,
+  [MessageType.NUKE_SANCTIONS]: MessageCategory.NUKE,
   [MessageType.DONATION_SENT]: MessageCategory.TRADE,
   [MessageType.DONATION_RECEIVED]: MessageCategory.TRADE,
   [MessageType.CHAT]: MessageCategory.CHAT,

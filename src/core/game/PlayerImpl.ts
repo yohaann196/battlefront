@@ -56,6 +56,8 @@ import {
   GameUpdateType,
   PlayerUpdate,
 } from "./GameUpdates";
+import { DEFAULT_IDEOLOGY, Ideology, ideologyOrdinal } from "./Ideology";
+import { researchPointsForLevel } from "./Research";
 import { ReadonlyTileSet, TileSet } from "./TileSet";
 import {
   bumpTraversalGeneration,
@@ -130,6 +132,12 @@ export class PlayerImpl implements Player {
 
   markedTraitorTick = -1;
   markedDoomsdayClockTick = -1;
+  /** Tick of this player's most recent nuclear launch (-1 = never nuked). */
+  private nukeLaunchedTick = -1;
+  private _ideology: Ideology;
+  /** -1 until the player first commits to a government (the free first pick). */
+  private _ideologyChangedTick: Tick = -1;
+  private _researchPoints = 0;
   /** Tick territory rot last took land from this player (-1 = never). */
   private rottedAtTick = -1;
   private _betrayalCount: number = 0;
@@ -198,6 +206,12 @@ export class PlayerImpl implements Player {
     this._troops = toInt(startTroops);
     this._gold = mg.config().startingGold(playerInfo);
     this._pseudo_random = new PseudoRandom(simpleHash(this.playerInfo.id));
+    this._ideology = playerInfo.preset?.ideology ?? DEFAULT_IDEOLOGY;
+    // A preset research level is seeded as points, so the player carries on
+    // climbing the same ladder from where their faction historically sat.
+    this._researchPoints = researchPointsForLevel(
+      playerInfo.preset?.researchLevel ?? 0,
+    );
   }
 
   largestClusterBoundingBox: { min: Cell; max: Cell } | null;
@@ -383,6 +397,13 @@ export class PlayerImpl implements Player {
       embargoes: embargoes,
       isTraitor: this.isTraitor(),
       traitorRemainingTicks: this.getTraitorRemainingTicks(),
+      ideology: this._ideology,
+      ideologyTransitionRemainingTicks: this.ideologyTransitionRemainingTicks(),
+      hasChosenIdeology: this._ideologyChangedTick >= 0,
+      researchPoints: this._researchPoints,
+      researchLevel: this.researchLevel(),
+      researchLabLevels: this.researchLabLevels(),
+      nukePenaltyRemainingTicks: this.nukePenaltyRemainingTicks(),
       inDoomsdayClock: this.inDoomsdayClock(),
       isDecaying: this.isDecaying(),
       markedDoomsdayClockTick: this.markedDoomsdayClockTick,
@@ -848,8 +869,77 @@ export class PlayerImpl implements Player {
     this.mg.removeAlliancesByPlayerSilently(this);
   }
 
+  // Shunned by the world for either reason. The nuclear half is what makes a
+  // launch cost you your standing: the traitor icon, the AI's appetite for
+  // attacking you, and every alliance refusal key off this.
   isTraitor(): boolean {
+    return this.isAllianceTraitor() || this.isNuclearPariah();
+  }
+
+  // Betrayal specifically. attackLogic's defense debuff reads this rather
+  // than isTraitor(), so a nuclear pariah is not punished twice (they carry
+  // their own, separate debuff via Config.defenseStrength).
+  isAllianceTraitor(): boolean {
     return this.getTraitorRemainingTicks() > 0;
+  }
+
+  markNuclearPariah(): void {
+    // Re-launching restarts the clock rather than stacking windows: the
+    // penalty is already severe, and a fresh five minutes per warhead is a
+    // harsher deterrent than a longer-but-diluted one.
+    this.nukeLaunchedTick = this.mg.ticks();
+  }
+
+  isNuclearPariah(): boolean {
+    return this.nukePenaltyRemainingTicks() > 0;
+  }
+
+  nukePenaltyRemainingTicks(): number {
+    if (this.nukeLaunchedTick < 0) return 0;
+    const elapsed = this.mg.ticks() - this.nukeLaunchedTick;
+    const remaining = this.mg.config().nukePenaltyDuration() - elapsed;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  ideology(): Ideology {
+    return this._ideology;
+  }
+
+  setIdeology(ideology: Ideology): void {
+    this._ideology = ideology;
+    this._ideologyChangedTick = this.mg.ticks();
+  }
+
+  ideologyChangedTick(): Tick {
+    return this._ideologyChangedTick;
+  }
+
+  ideologyTransitionRemainingTicks(): number {
+    if (this._ideologyChangedTick < 0) return 0;
+    const elapsed = this.mg.ticks() - this._ideologyChangedTick;
+    const remaining = this.mg.config().ideologyTransitionDuration() - elapsed;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  researchPoints(): number {
+    return this._researchPoints;
+  }
+
+  addResearchPoints(points: number): void {
+    if (points <= 0) return;
+    this._researchPoints += points;
+  }
+
+  researchLevel(): number {
+    return this.mg.config().researchLevel(this);
+  }
+
+  // Counted by level, so upgrading one lab is worth as much toward the
+  // nuclear-program requirements as building another.
+  researchLabLevels(): number {
+    return this.units(UnitType.ResearchLab)
+      .filter((u) => !u.isUnderConstruction())
+      .reduce((total, lab) => total + lab.level(), 0);
   }
 
   getTraitorRemainingTicks(): number {
@@ -920,6 +1010,17 @@ export class PlayerImpl implements Player {
   relation(other: Player): Relation {
     if (other === this) {
       throw new Error(`cannot get relation with self: ${this}`);
+    }
+    // Using nuclear weapons makes you a pariah outright. The numeric score
+    // decays back toward neutral within seconds, which would let the world
+    // forgive a nuke almost immediately; this holds hostility for the whole
+    // sanctions window. Your own side stands by you.
+    if (
+      other.isNuclearPariah() &&
+      !this.isOnSameTeam(other) &&
+      !this.isAlliedWith(other)
+    ) {
+      return Relation.Hostile;
     }
     const relation = this.relations.get(other) ?? 0;
     return this.relationFromValue(relation);
@@ -1426,7 +1527,19 @@ export class PlayerImpl implements Player {
     unitType: UnitType,
     knownCost: Gold | null = null,
   ): boolean {
-    if (this.mg.config().isUnitDisabled(unitType)) {
+    const config = this.mg.config();
+    if (config.isUnitDisabled(unitType)) {
+      return false;
+    }
+    // Research gate. Checked here rather than at the UI layer so the build
+    // menu greys the unit out, buildableUnits() omits it, and the AI cannot
+    // route around it — all from one rule.
+    const required = config.unitResearchRequirement(unitType);
+    if (
+      required !== null &&
+      (this.researchLevel() < required.level ||
+        this.researchLabLevels() < required.labs)
+    ) {
       return false;
     }
     const cost = knownCost ?? this.mg.unitInfo(unitType).cost(this.mg, this);
@@ -1592,6 +1705,10 @@ export class PlayerImpl implements Player {
       case UnitType.SAMLauncher:
       case UnitType.City:
       case UnitType.Factory:
+      case UnitType.Barracks:
+      case UnitType.Artillery:
+      case UnitType.Fortress:
+      case UnitType.ResearchLab:
         return this.landBasedStructureSpawn(targetTile, validTiles);
       default:
         assertNever(unitType);
@@ -1828,7 +1945,11 @@ export class PlayerImpl implements Player {
   hash(): number {
     return (
       simpleHash(this.id()) * (this.troops() + this.numTilesOwned()) +
-      this._units.reduce((acc, unit) => acc + unit.hash(), 0)
+      this._units.reduce((acc, unit) => acc + unit.hash(), 0) +
+      // Government and tech drive income, combat and what can be built, so a
+      // client that disagrees about them has really desynced.
+      this._researchPoints +
+      ideologyOrdinal(this._ideology)
     );
   }
   toString(): string {

@@ -24,6 +24,7 @@ import {
   PlayerUpdate,
   UnitUpdate,
 } from "../../src/core/game/GameUpdates";
+import { Ideology } from "../../src/core/game/Ideology";
 import { TerrainMapData } from "../../src/core/game/TerrainMapLoader";
 import { Player, PlayerCosmetics } from "../../src/core/Schemas";
 import { WorkerClient } from "../../src/core/worker/WorkerClient";
@@ -61,6 +62,8 @@ export function stubConfig(overrides: Partial<Config> = {}): Config {
     doomsdayClockConfig: () => ({ warnSeconds: 15 }),
     nukeMagnitudes: () => ({ inner: 0, outer: 0 }),
     nukeAllianceBreakThreshold: () => 0,
+    // No scenario by default: the ordinary game the view tests assume.
+    scenario: () => null,
     userSettings: () => ({}),
     ...overrides,
   } as unknown as Config;
@@ -135,6 +138,13 @@ export function makePlayerUpdate(
     allies: [],
     embargoes: new Set(),
     isTraitor: false,
+    ideology: Ideology.Capitalism,
+    ideologyTransitionRemainingTicks: 0,
+    hasChosenIdeology: false,
+    researchPoints: 0,
+    researchLevel: 0,
+    researchLabLevels: 0,
+    nukePenaltyRemainingTicks: 0,
     // Doomsday-clock state. Present here so the diffPlayerUpdate field-coverage
     // walk in GameUpdateUtils.test.ts reaches these: a field missing from this
     // stub is a field that walk cannot check.

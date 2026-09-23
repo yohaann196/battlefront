@@ -16,6 +16,7 @@
  */
 import { Config } from "../src/core/configuration/Config";
 import { Player } from "../src/core/game/Game";
+import { Ideology } from "../src/core/game/Ideology";
 import { UserSettings } from "../src/core/game/UserSettings";
 import { GameConfig } from "../src/core/Schemas";
 
@@ -26,7 +27,13 @@ function makeConfig(gameConfig: Partial<GameConfig> = {}): Config {
 const config = makeConfig();
 
 function player(isLobbyCreator = false): Player {
-  return { isLobbyCreator: () => isLobbyCreator } as unknown as Player;
+  return {
+    isLobbyCreator: () => isLobbyCreator,
+    // Government accessors read by Config's gold formulas.
+    isNuclearPariah: () => false,
+    ideology: () => Ideology.Capitalism,
+    ideologyTransitionRemainingTicks: () => 0,
+  } as unknown as Player;
 }
 
 const DISTANCES = [

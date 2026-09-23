@@ -17,7 +17,7 @@ import { ParabolaUniversalPathFinder } from "../pathfinding/PathFinder.Parabola"
 import { PathStatus } from "../pathfinding/types";
 import { PseudoRandom } from "../PseudoRandom";
 import { NukeType } from "../StatsSchemas";
-import { listNukeBreakAlliance } from "./Util";
+import { applyNukeLaunchPenalty, listNukeBreakAlliance } from "./Util";
 
 const SPRITE_RADIUS = 16;
 
@@ -217,6 +217,10 @@ export class NukeExecution implements Execution {
       this.recordMotionPlan(ticks);
       if (this.nuke.type() !== UnitType.MIRVWarhead) {
         this.maybeBreakAlliances();
+        // Using the bomb costs you your standing in the world, whether or
+        // not it ever lands. MIRV warheads are excluded because the MIRV
+        // that released them was already sanctioned at its own launch.
+        applyNukeLaunchPenalty(this.mg, this.player);
       }
       if (this.mg.hasOwner(this.dst)) {
         const target = this.mg.owner(this.dst);

@@ -98,8 +98,9 @@ export interface TutorialStep {
 }
 
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
-  // Waits out the multiplayer spawn timer too: the next step asks the
-  // player to expand, which is impossible until the game actually starts.
+  // No "pick a spawn" step: Battlefront seats you on your faction's ground
+  // before the first tick. This just waits for that to land, so the next
+  // step (expanding) is actually possible.
   { id: "spawn", isDone: (c) => c.hasSpawned && !c.inSpawnPhase },
   // Keeps the spawn ring on the player's territory so they can find it.
   // Any attack counts so a player who hits a bot first doesn't get stuck.

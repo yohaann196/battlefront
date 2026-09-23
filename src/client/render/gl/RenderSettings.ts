@@ -153,6 +153,8 @@ export interface RenderSettings {
     highlightFillBrighten: number;
     highlightThicken: number;
     defensePostRange: number;
+    /** Fortress coverage radius, in tiles (Config.fortressRange). */
+    fortressRange: number;
     embargoTintRatio: number;
     friendlyTintRatio: number;
     embargoTintR: number;

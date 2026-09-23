@@ -1,5 +1,6 @@
 ﻿import { Cell, Game, GameMapSize, PlayerInfo, PlayerType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
+import { Ideology } from "../game/Ideology";
 import { type CustomTribe } from "../game/Maps.gen";
 import { PseudoRandom } from "../PseudoRandom";
 import { GameID } from "../Schemas";
@@ -82,7 +83,19 @@ export class TribeSpawner {
   spawnTribe(tribeName: string): SpawnExecution {
     return new SpawnExecution(
       this.gameID,
-      new PlayerInfo(tribeName, PlayerType.Bot, null, this.random.nextID()),
+      new PlayerInfo(
+        tribeName,
+        PlayerType.Bot,
+        null,
+        this.random.nextID(),
+        false,
+        null,
+        [],
+        null,
+        null,
+        // Tribes are raiders, not states: they fight cheap and grow fast.
+        { ideology: Ideology.Militarism },
+      ),
     );
   }
 
@@ -117,7 +130,18 @@ export class TribeSpawner {
     }
     return new SpawnExecution(
       this.gameID,
-      new PlayerInfo(ct.name, PlayerType.Bot, null, this.random.nextID()),
+      new PlayerInfo(
+        ct.name,
+        PlayerType.Bot,
+        null,
+        this.random.nextID(),
+        false,
+        null,
+        [],
+        null,
+        null,
+        { ideology: Ideology.Militarism },
+      ),
       tile,
     );
   }

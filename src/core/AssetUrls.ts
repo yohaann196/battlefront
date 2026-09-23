@@ -104,6 +104,27 @@ export function getCdnBase(): string {
   return globalThis.__CDN_BASE__ ?? "";
 }
 
+/**
+ * The asset base as the game worker needs to see it: absolute.
+ *
+ * The worker is instantiated from an inlined Blob, and a `blob:` URL has an
+ * opaque base, so a root-relative fetch ("/foo.bin") inside it throws
+ * "Failed to parse URL" rather than resolving against the page. A CDN
+ * deployment already supplies a full origin here; a same-origin or
+ * sub-path deployment (GitHub Pages) supplies a path, which this resolves
+ * against the document's origin before handing it over.
+ */
+export function getWorkerCdnBase(): string {
+  const base = getCdnBase();
+  if (isAbsoluteUrl(base)) {
+    return base;
+  }
+  if (typeof location === "undefined") {
+    return base;
+  }
+  return `${location.origin}${base}`;
+}
+
 export function assetUrl(path: string): string {
   return buildAssetUrl(path, getAssetManifest(), getCdnBase());
 }

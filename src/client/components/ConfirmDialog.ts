@@ -104,7 +104,11 @@ export class ConfirmDialog extends LitElement {
                 ${this.heading}
               </h2>`
             : ""}
-          <p class="text-sm font-medium ${textColor} mb-5">${this.message}</p>
+          <!-- whitespace-pre-line: a message may lay itself out over several
+               lines (e.g. a list of consequences) and must keep them. -->
+          <p class="text-sm font-medium ${textColor} mb-5 whitespace-pre-line">
+            ${this.message}
+          </p>
           ${this.textareaPlaceholder
             ? html`<textarea
                 .value=${this.text}

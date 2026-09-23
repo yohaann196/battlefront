@@ -74,10 +74,11 @@ describe("Construction economy", () => {
 
   test("MIRV gets more expensive with each launch", () => {
     expect(game.config().unitInfo(UnitType.MIRV).cost(game, other)).toBe(
-      25_000_000n,
+      100_000_000n,
     );
 
-    player.addGold(100_000_000n);
+    // Enough to cover the silo and the MIRV itself at their current prices.
+    player.addGold(200_000_000n);
 
     player.conquer(game.ref(1, 1));
     player.buildUnit(UnitType.MissileSilo, game.ref(1, 1), {});
@@ -94,7 +95,7 @@ describe("Construction economy", () => {
 
     // Price of the MIRV increases for everyone with each launch.
     expect(game.config().unitInfo(UnitType.MIRV).cost(game, other)).toBe(
-      40_000_000n,
+      150_000_000n,
     );
   });
 });

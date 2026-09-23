@@ -13,6 +13,14 @@ import {
   maps,
   UnitType,
 } from "../core/game/Game";
+import { DEFAULT_IDEOLOGY, Ideology } from "../core/game/Ideology";
+import {
+  playableFactions,
+  Scenario,
+  scenarioFaction,
+  ScenarioId,
+  SCENARIOS,
+} from "../core/game/Scenarios";
 import { UserSettings } from "../core/game/UserSettings";
 import { PlayerCosmetics, TeamCountConfig } from "../core/Schemas";
 import { generateID } from "../core/Util";
@@ -119,6 +127,9 @@ const DEFAULT_OPTIONS = {
   doomsdayClockSpeed: "normal" as DoomsdayClockSpeed,
   overtime: false,
   overtimeStartMinutes: undefined as number | undefined,
+  ideology: DEFAULT_IDEOLOGY as Ideology,
+  scenarioId: null as ScenarioId | null,
+  scenarioFaction: null as string | null,
 } as const;
 
 // A map earns achievements only if it has nations to conquer — the same rule
@@ -182,6 +193,12 @@ export class SinglePlayerModal extends BaseModal {
   @state() private instantBuild: boolean = DEFAULT_OPTIONS.instantBuild;
   @state() private randomSpawn: boolean = DEFAULT_OPTIONS.randomSpawn;
   @state() private useRandomMap: boolean = DEFAULT_OPTIONS.useRandomMap;
+  @state() private ideology: Ideology = DEFAULT_OPTIONS.ideology;
+  @state() private scenarioId: ScenarioId | null = DEFAULT_OPTIONS.scenarioId;
+  @state() private scenarioFaction: string | null =
+    DEFAULT_OPTIONS.scenarioFaction;
+  /** Faction key → flag code, read from the scenario map's manifest. */
+  @state() private scenarioFlags: Record<string, string> = {};
   @state() private gameMode: GameMode = DEFAULT_OPTIONS.gameMode;
   @state() private teamCount: TeamCountConfig = DEFAULT_OPTIONS.teamCount;
   @state() private showAchievements: boolean = false;
@@ -522,10 +539,6 @@ export class SinglePlayerModal extends BaseModal {
                     checked: this.instantBuild,
                   },
                   {
-                    labelKey: "game_settings.random_spawn",
-                    checked: this.randomSpawn,
-                  },
-                  {
                     labelKey: "game_settings.infinite_gold",
                     checked: this.infiniteGold,
                   },
@@ -553,6 +566,12 @@ export class SinglePlayerModal extends BaseModal {
                 titleKey: "game_settings.disable_units",
                 disabledUnits: this.disabledUnits,
               },
+              ideology: { selected: this.ideology },
+              scenario: {
+                selected: this.scenarioId,
+                faction: this.scenarioFaction,
+                flags: this.scenarioFlags,
+              },
             }}
             @map-selected=${this.handleConfigMapSelected}
             @random-map-selected=${this.handleConfigRandomMapSelected}
@@ -565,6 +584,9 @@ export class SinglePlayerModal extends BaseModal {
             @nations-changed=${this.handleNationsChange}
             @option-toggle-changed=${this.handleConfigOptionToggleChanged}
             @unit-toggle-changed=${this.handleConfigUnitToggleChanged}
+            @ideology-selected=${this.handleIdeologySelected}
+            @scenario-selected=${this.handleScenarioSelected}
+            @faction-selected=${this.handleFactionSelected}
           ></game-config-settings>
         </div>
 
@@ -596,6 +618,8 @@ export class SinglePlayerModal extends BaseModal {
   // Check if any options other than map and difficulty have been changed from defaults
   private hasOptionsChanged(): boolean {
     return (
+      this.scenarioId !== DEFAULT_OPTIONS.scenarioId ||
+      this.ideology !== DEFAULT_OPTIONS.ideology ||
       this.nations !== this.defaultNationCount ||
       this.bots !== DEFAULT_OPTIONS.bots ||
       this.infiniteGold !== DEFAULT_OPTIONS.infiniteGold ||
@@ -667,6 +691,10 @@ export class SinglePlayerModal extends BaseModal {
     this.selectedDifficulty = DEFAULT_OPTIONS.selectedDifficulty;
     this.gameMode = DEFAULT_OPTIONS.gameMode;
     this.useRandomMap = DEFAULT_OPTIONS.useRandomMap;
+    this.ideology = DEFAULT_OPTIONS.ideology;
+    this.scenarioId = DEFAULT_OPTIONS.scenarioId;
+    this.scenarioFaction = DEFAULT_OPTIONS.scenarioFaction;
+    this.scenarioFlags = {};
     this.bots = DEFAULT_OPTIONS.bots;
     this.nations = 0;
     this.defaultNationCount = 0;
@@ -737,6 +765,83 @@ export class SinglePlayerModal extends BaseModal {
     const customEvent = e as CustomEvent<{ speed: DoomsdayClockSpeed }>;
     this.doomsdayClockSpeed = customEvent.detail.speed;
   };
+
+  private handleIdeologySelected = (e: Event) => {
+    this.ideology = (e as CustomEvent<{ ideology: Ideology }>).detail.ideology;
+  };
+
+  /**
+   * Picking a scenario takes over the map, the mode and the era's unit bans,
+   * so those settings are set here rather than left to the player.
+   */
+  private handleScenarioSelected = async (e: Event) => {
+    const id = (e as CustomEvent<{ scenario: ScenarioId | null }>).detail
+      .scenario;
+    await this.applyScenario(id);
+  };
+
+  /** Applies a scenario's map, mode, default faction and era restrictions. */
+  private async applyScenario(id: ScenarioId | null) {
+    this.scenarioId = id;
+    this.scenarioFaction = null;
+    this.scenarioFlags = {};
+    if (id === null) {
+      return;
+    }
+    const scenario = SCENARIOS[id];
+    this.selectedMap = scenario.map;
+    this.useRandomMap = false;
+    this.gameMode = scenario.gameMode;
+    this.ideology =
+      playableFactions(scenario)[0]?.ideology ?? DEFAULT_OPTIONS.ideology;
+    this.scenarioFaction = playableFactions(scenario)[0]?.key ?? null;
+    await this.loadScenarioFlags(scenario);
+  }
+
+  private handleFactionSelected = (e: Event) => {
+    this.selectFaction((e as CustomEvent<{ faction: string }>).detail.faction);
+  };
+
+  private selectFaction(key: string) {
+    this.scenarioFaction = key;
+    const scenario =
+      this.scenarioId === null ? null : SCENARIOS[this.scenarioId];
+    const faction = scenario === null ? null : scenarioFaction(scenario, key);
+    if (faction !== null) {
+      // Default to the faction's historical government; the player can still
+      // override it with the ideology cards below.
+      this.ideology = faction.ideology;
+    }
+  }
+
+  /**
+   * Resolves each playable faction's flag from the scenario map's manifest,
+   * so a historical power shows the flag of the nation whose ground it holds.
+   */
+  private async loadScenarioFlags(scenario: Scenario) {
+    try {
+      const manifest = await terrainMapFileLoader
+        .getMapData(scenario.map)
+        .manifest();
+      const byName = new Map(
+        (manifest.nations ?? []).map((n) => [n.name, n.flag]),
+      );
+      const flags: Record<string, string> = {};
+      for (const faction of playableFactions(scenario)) {
+        const flag =
+          faction.flag ??
+          (faction.baseNation === undefined
+            ? undefined
+            : byName.get(faction.baseNation));
+        if (flag !== undefined) flags[faction.key] = flag;
+      }
+      this.scenarioFlags = flags;
+    } catch (err) {
+      // Flags are decoration; a failed manifest read must not block play.
+      console.warn("could not load scenario flags", err);
+      this.scenarioFlags = {};
+    }
+  }
 
   private handleConfigGameModeSelected = (e: Event) => {
     const customEvent = e as CustomEvent<{ mode: GameMode }>;
@@ -1035,6 +1140,39 @@ export class SinglePlayerModal extends BaseModal {
     );
   }
 
+  /**
+   * Launches a game with an explicit setup, bypassing the settings panel.
+   *
+   * The Battlefront home screen is a scenario launcher rather than a settings
+   * form, so it hands the few choices it collects to the same start path the
+   * panel uses instead of duplicating name resolution, cosmetics and the
+   * join-lobby handshake.
+   */
+  public async launch(opts: {
+    scenarioId?: ScenarioId | null;
+    faction?: string | null;
+    ideology?: Ideology;
+    map?: GameMapType;
+    difficulty?: Difficulty;
+    bots?: number;
+  }): Promise<void> {
+    if (opts.scenarioId !== undefined) {
+      // Applies the scenario's map, mode and era bans, and picks its default
+      // faction, exactly as choosing it in the panel would.
+      await this.applyScenario(opts.scenarioId);
+    }
+    if (opts.faction !== undefined && opts.faction !== null) {
+      this.selectFaction(opts.faction);
+    }
+    if (opts.ideology !== undefined) this.ideology = opts.ideology;
+    if (opts.map !== undefined) this.selectedMap = opts.map;
+    if (opts.difficulty !== undefined)
+      this.selectedDifficulty = opts.difficulty;
+    if (opts.bots !== undefined) this.bots = opts.bots;
+    await this.updateComplete;
+    await this.startGame();
+  }
+
   private async startGame() {
     // A second click while the first is still resolving would dispatch a
     // second join-lobby for a different gameID.
@@ -1128,6 +1266,7 @@ export class SinglePlayerModal extends BaseModal {
                   username: resolvedName.name,
                   clanTag: usernameInput?.getClanTag() ?? null,
                   cosmetics,
+                  ideology: this.ideology,
                 },
               ],
               config: {
@@ -1146,7 +1285,12 @@ export class SinglePlayerModal extends BaseModal {
                 donateTroops: this.gameMode === GameMode.Team,
                 infiniteTroops: this.infiniteTroops,
                 instantBuild: this.instantBuild,
-                randomSpawn: this.randomSpawn,
+                // Battlefront never asks the player to pick a spot on the
+                // map. A scenario seats you on your own faction's ground
+                // (ScenarioSpawnExecution), which the engine's random-spawn
+                // path would override, so that stays off there; every other
+                // game places you automatically instead.
+                randomSpawn: this.scenarioId === null,
                 disabledUnits: this.disabledUnits.filter(
                   (unit): unit is UnitType =>
                     Object.values(UnitType).includes(unit),
@@ -1155,6 +1299,17 @@ export class SinglePlayerModal extends BaseModal {
                   this.nations,
                   this.defaultNationCount,
                 ),
+                // A scenario seats its own cast on its own map in its own
+                // mode; those settings were already applied to the controls
+                // when it was picked, so only the choice itself travels here.
+                ...(this.scenarioId !== null && this.scenarioFaction !== null
+                  ? {
+                      scenario: {
+                        id: this.scenarioId,
+                        faction: this.scenarioFaction,
+                      },
+                    }
+                  : {}),
                 ...(this.goldMultiplier && this.goldMultiplierValue
                   ? { goldMultiplier: this.goldMultiplierValue }
                   : {}),

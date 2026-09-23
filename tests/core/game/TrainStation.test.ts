@@ -13,6 +13,7 @@ import {
   Unit,
   UnitType,
 } from "../../../src/core/game/Game";
+import { Ideology } from "../../../src/core/game/Ideology";
 import { Cluster, TrainStation } from "../../../src/core/game/TrainStation";
 import { UserSettings } from "../../../src/core/game/UserSettings";
 import { GameConfig } from "../../../src/core/Schemas";
@@ -232,38 +233,50 @@ describe("Config.trainGold trade stop penalty", () => {
       randomSpawn: false,
     };
     config = new Config(gameConfig, new UserSettings(), false);
-    mockPlayer = { isLobbyCreator: () => false } as unknown as Player;
+    mockPlayer = {
+      isLobbyCreator: () => false,
+      isNuclearPariah: () => false,
+      ideology: () => Ideology.Capitalism,
+      ideologyTransitionRemainingTicks: () => 0,
+    } as unknown as Player;
   });
+
+  // These cases are about the distance-penalty curve, not the absolute size
+  // of the economy: rail income is additionally scaled by the owner's
+  // government and the global economic trim, so the pre-scaling figure is
+  // what each case asserts.
+  const scaled = (base: number) =>
+    BigInt(Math.floor(base * config.tradeIncomeMultiplier(mockPlayer)));
 
   it("returns full base gold within free window (stops 0-9)", () => {
     // first 10 stops (0-9) are free — no penalty
-    expect(config.trainGold("self", 0, mockPlayer)).toBe(10_000n);
-    expect(config.trainGold("self", 9, mockPlayer)).toBe(10_000n);
+    expect(config.trainGold("self", 0, mockPlayer)).toBe(scaled(10_000));
+    expect(config.trainGold("self", 9, mockPlayer)).toBe(scaled(10_000));
   });
 
   it("reduces gold by 5k per stop after the free window", () => {
     // stop 10: effective = 10-9 = 1 -> 10k - 5k = 5k
-    expect(config.trainGold("self", 10, mockPlayer)).toBe(5_000n);
+    expect(config.trainGold("self", 10, mockPlayer)).toBe(scaled(5_000));
   });
 
   it("floors at 5k when penalty exceeds base gold", () => {
     // stop 12: effective = 3 -> 10k - 15k -> floor at 5k
-    expect(config.trainGold("self", 12, mockPlayer)).toBe(5_000n);
+    expect(config.trainGold("self", 12, mockPlayer)).toBe(scaled(5_000));
   });
 
   it("floors at 5k for ally base even with heavy penalty", () => {
     // ally base 35k, stop 20: effective = 11 -> penalty 55k -> floor at 5k
-    expect(config.trainGold("ally", 20, mockPlayer)).toBe(5_000n);
+    expect(config.trainGold("ally", 20, mockPlayer)).toBe(scaled(5_000));
   });
 
   it("ally base gold reduces correctly after free window", () => {
     // ally base 35k, stop 11: effective = 2 -> 35k - 10k = 25k
-    expect(config.trainGold("ally", 11, mockPlayer)).toBe(25_000n);
+    expect(config.trainGold("ally", 11, mockPlayer)).toBe(scaled(25_000));
   });
 
   it("other/team base gold reduces correctly after free window", () => {
     // other base 25k, stop 10: effective = 1 -> 25k - 5k = 20k
-    expect(config.trainGold("other", 10, mockPlayer)).toBe(20_000n);
-    expect(config.trainGold("team", 10, mockPlayer)).toBe(20_000n);
+    expect(config.trainGold("other", 10, mockPlayer)).toBe(scaled(20_000));
+    expect(config.trainGold("team", 10, mockPlayer)).toBe(scaled(20_000));
   });
 });

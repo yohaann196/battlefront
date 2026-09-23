@@ -336,13 +336,34 @@ export class AttackExecution implements Execution {
     // (active, not under construction, within range), without building a
     // result array per conquered tile — this runs for every tile of every
     // attack on the map.
+    const config = this.mg.config();
     const defenderHasDefensePost =
       defender !== null &&
       this.mg.hasUnitNearby(
         tile,
-        this.mg.config().defensePostRange(),
+        config.defensePostRange(),
         UnitType.DefensePost,
         defender.id(),
+      );
+    // Fortresses and artillery are rare, so the unit-count guards keep the
+    // per-tile cost at zero for the overwhelming majority of attacks (this
+    // runs for every tile of every attack on the map).
+    const defenderHasFortress =
+      defender !== null &&
+      defender.unitCount(UnitType.Fortress) > 0 &&
+      this.mg.hasUnitNearby(
+        tile,
+        config.fortressRange(),
+        UnitType.Fortress,
+        defender.id(),
+      );
+    const attackerHasArtillery =
+      this._owner.unitCount(UnitType.Artillery) > 0 &&
+      this.mg.hasUnitNearby(
+        tile,
+        config.artilleryRange(),
+        UnitType.Artillery,
+        this._owner.id(),
       );
     return {
       terrain: this.map.terrainType(tile),
@@ -358,11 +379,18 @@ export class AttackExecution implements Execution {
               type: defender.type(),
               numTiles: defender.numTilesOwned(),
               troops: defender.troops(),
-              isTraitor: defender.isTraitor(),
+              // Betrayal only: a nuclear pariah's penalty rides
+              // defenderStrength instead (see Config.defenseStrength).
+              isTraitor: defender.isAllianceTraitor(),
               isDisconnectedTeammate:
                 defender.isDisconnected() && this._owner.isOnSameTeam(defender),
             },
       defenderHasDefensePost,
+      defenderHasFortress,
+      attackerHasArtillery,
+      attackerStrength: config.attackStrength(this._owner),
+      defenderStrength:
+        defender === null ? 1 : config.defenseStrength(defender),
       falloutRatio: this.mg.hasFallout(tile)
         ? this.mg.numTilesWithFallout() / this.mg.numLandTiles()
         : null,

@@ -7,6 +7,7 @@ import {
   BuildableUnit,
   BuildMenus,
   Gold,
+  Nukes,
   PlayerBuildableUnitType,
   UnitType,
 } from "../../../core/game/Game";
@@ -26,6 +27,10 @@ import {
 import { UIState } from "../../UIState";
 import { renderNumber } from "../../Utils";
 import { GameView } from "../../view";
+const artilleryIcon = assetUrl("images/ArtilleryIconWhite.svg");
+const barracksIcon = assetUrl("images/BarracksIconWhite.svg");
+const fortressIcon = assetUrl("images/FortressIconWhite.svg");
+const researchLabIcon = assetUrl("images/ResearchLabIconWhite.svg");
 const warshipIcon = assetUrl("images/BattleshipIconWhite.svg");
 const cityIcon = assetUrl("images/CityIconWhite.svg");
 const factoryIcon = assetUrl("images/FactoryIconWhite.svg");
@@ -118,6 +123,34 @@ export const buildTable: BuildItemDisplay[][] = [
       key: "unit_type.factory",
       countable: true,
     },
+    {
+      unitType: UnitType.Barracks,
+      icon: barracksIcon,
+      description: "build_menu.desc.barracks",
+      key: "unit_type.barracks",
+      countable: true,
+    },
+    {
+      unitType: UnitType.ResearchLab,
+      icon: researchLabIcon,
+      description: "build_menu.desc.research_lab",
+      key: "unit_type.research_lab",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Artillery,
+      icon: artilleryIcon,
+      description: "build_menu.desc.artillery",
+      key: "unit_type.artillery",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Fortress,
+      icon: fortressIcon,
+      description: "build_menu.desc.fortress",
+      key: "unit_type.fortress",
+      countable: true,
+    },
   ],
 ];
 
@@ -174,10 +207,14 @@ export class BuildMenu extends LitElement implements Controller {
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 9999;
-      background-color: #1e1e1e;
-      padding: 15px;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-      border-radius: 10px;
+      /* Console surface: flat charcoal with a hairline amber top rule,
+         matching the command bar rather than the stock rounded card. */
+      background-color: #10141b;
+      border: 1px solid #2b3342;
+      border-top: 1px solid #a8761c;
+      padding: 14px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+      border-radius: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -187,6 +224,21 @@ export class BuildMenu extends LitElement implements Controller {
     }
     .build-description {
       font-size: 0.6rem;
+    }
+    /* Why a unit is unavailable, when the reason is technology. */
+    .build-locked {
+      font-size: 0.6rem;
+      color: #9ec5ff;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    /* Nuclear weapons warn about their consequences before you commit. */
+    .build-warning {
+      font-size: 0.55rem;
+      color: #ff9b9b;
+      font-weight: 600;
+      line-height: 1.1;
+      margin-top: 2px;
     }
     .build-row {
       display: flex;
@@ -198,12 +250,14 @@ export class BuildMenu extends LitElement implements Controller {
       position: relative;
       width: 120px;
       height: 140px;
-      border: 2px solid #444;
-      background-color: #2c2c2c;
-      color: white;
-      border-radius: 12px;
+      border: 1px solid #2b3342;
+      background-color: #171c26;
+      color: #e6eaf2;
+      border-radius: 0;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -213,9 +267,21 @@ export class BuildMenu extends LitElement implements Controller {
       gap: 5px;
     }
     .build-button:not(:disabled):hover {
-      background-color: #3a3a3a;
-      transform: scale(1.05);
-      border-color: #666;
+      background-color: #1e2531;
+      border-color: #3b4557;
+    }
+    /* An amber edge marks what you can actually commission right now. */
+    .build-button:not(:disabled)::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #a8761c;
+    }
+    .build-button:not(:disabled):hover::before {
+      background: #f0a92b;
     }
     .build-button:not(:disabled):active {
       background-color: #4a4a4a;
@@ -403,6 +469,27 @@ export class BuildMenu extends LitElement implements Controller {
     this.hideMenu();
   }
 
+  /**
+   * Why a unit cannot be built yet, when the reason is technology rather
+   * than money. Returning null means research is not what is blocking it.
+   */
+  private researchLock(unitType: UnitType): string | null {
+    const player = this.game?.myPlayer();
+    if (!player) return null;
+    const required = this.game.config().unitResearchRequirement(unitType);
+    if (required === null) return null;
+
+    if (player.researchLevel() < required.level) {
+      return translateText("build_menu.locked_research", {
+        level: required.level,
+      });
+    }
+    if (player.researchLabLevels() < required.labs) {
+      return translateText("build_menu.locked_labs", { labs: required.labs });
+    }
+    return null;
+  }
+
   render() {
     return html`
       <div
@@ -422,6 +509,7 @@ export class BuildMenu extends LitElement implements Controller {
                 const enabled =
                   buildableUnit.canBuild !== false ||
                   buildableUnit.canUpgrade !== false;
+                const lock = enabled ? null : this.researchLock(item.unitType);
                 return html`
                   <button
                     class="build-button"
@@ -429,7 +517,7 @@ export class BuildMenu extends LitElement implements Controller {
                       this.sendBuildOrUpgrade(buildableUnit, this.clickedTile)}
                     ?disabled=${!enabled}
                     title=${!enabled
-                      ? translateText("build_menu.not_enough_money")
+                      ? (lock ?? translateText("build_menu.not_enough_money"))
                       : ""}
                   >
                     <img
@@ -445,6 +533,14 @@ export class BuildMenu extends LitElement implements Controller {
                       >${item.description &&
                       translateText(item.description)}</span
                     >
+                    ${lock !== null
+                      ? html`<span class="build-locked">${lock}</span>`
+                      : ""}
+                    ${Nukes.has(item.unitType)
+                      ? html`<span class="build-warning"
+                          >${translateText("build_menu.nuke_warning")}</span
+                        >`
+                      : ""}
                     <span class="build-cost" translate="no">
                       ${renderNumber(
                         this.game && this.game.myPlayer() ? this.cost(item) : 0,

@@ -1,12 +1,13 @@
 import {
-  LitElement,
-  SVGTemplateResult,
-  TemplateResult,
   html,
+  LitElement,
   nothing,
   svg,
+  SVGTemplateResult,
+  TemplateResult,
 } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { assetUrl } from "../../core/AssetUrls";
 import {
   DOOMSDAY_CLOCK_SPEEDS,
   DoomsdayClockSpeed,
@@ -21,6 +22,13 @@ import {
   Trios,
   UnitType,
 } from "../../core/game/Game";
+import { Ideology, IDEOLOGY_ORDER } from "../../core/game/Ideology";
+import {
+  playableFactions,
+  SCENARIO_ORDER,
+  ScenarioId,
+  SCENARIOS,
+} from "../../core/game/Scenarios";
 import { TeamCountConfig } from "../../core/Schemas";
 import { translateText } from "../Utils";
 import "./Difficulties";
@@ -135,6 +143,12 @@ const MODE_ICON = svg`<path
   d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z"
 />`;
 
+const IDEOLOGY_ICON = svg`<path
+  d="M12 2 3 7v2h18V7l-9-5zM5 11v7H3v2h18v-2h-2v-7h-2v7h-3v-7h-2v7H8v-7H5z"
+/>`;
+const SCENARIO_ICON = svg`<path
+  d="M4 3v18h2v-7h6l1 2h7V5h-6l-1-2H4zm2 2h5l1 2h6v7h-5l-1-2H6V5z"
+/>`;
 const OPTIONS_ICON = svg`<path
   fill-rule="evenodd"
   d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.922-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z"
@@ -235,6 +249,21 @@ export interface GameConfigSettingsData {
     titleKey: string;
     disabledUnits: UnitType[];
   };
+  /** The government the player starts under. Singleplayer only. */
+  ideology?: {
+    selected: Ideology;
+  };
+  /**
+   * The historical setup being played, if any. A scenario dictates the map,
+   * the mode and the era's unit bans, so those controls are locked while one
+   * is selected.
+   */
+  scenario?: {
+    selected: ScenarioId | null;
+    faction: string | null;
+    /** Faction key → flag code, resolved from the scenario map's manifest. */
+    flags?: Record<string, string>;
+  };
 }
 
 @customElement("game-config-settings")
@@ -281,6 +310,18 @@ export class GameConfigSettings extends LitElement {
   private handleDoomsdayClockSpeedChange = (e: Event) => {
     const speed = (e.target as HTMLSelectElement).value as DoomsdayClockSpeed;
     this.emit("doomsday-clock-speed-selected", { speed });
+  };
+
+  private handleIdeologySelect = (ideology: Ideology) => {
+    this.emit("ideology-selected", { ideology });
+  };
+
+  private handleScenarioSelect = (scenario: ScenarioId | null) => {
+    this.emit("scenario-selected", { scenario });
+  };
+
+  private handleFactionSelect = (faction: string) => {
+    this.emit("faction-selected", { faction });
   };
 
   private handleGameModeSelect = (mode: GameMode) => {
@@ -428,6 +469,137 @@ export class GameConfigSettings extends LitElement {
     </div>`;
   }
 
+  /** Four cards, each stating plainly what it gives up and what it gains. */
+  private renderIdeologyPicker(config: { selected: Ideology }) {
+    return html`
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        ${IDEOLOGY_ORDER.map((ideology) => {
+          const key = ideology.toLowerCase();
+          const isSelected = config.selected === ideology;
+          return html`
+            <button
+              class="${cardClass(isSelected, "p-4 text-left")}"
+              @click=${() => this.handleIdeologySelect(ideology)}
+            >
+              <span
+                class="block text-sm font-bold text-white uppercase tracking-widest"
+              >
+                ${translateText(`ideology.${key}.name`)}
+              </span>
+              <span class="block text-xs text-white/70 mt-1">
+                ${translateText(`ideology.${key}.desc`)}
+              </span>
+              <span class="block text-xs text-green-300 mt-2">
+                ${translateText(`ideology.${key}.buffs`)}
+              </span>
+              <span class="block text-xs text-red-300">
+                ${translateText(`ideology.${key}.debuffs`)}
+              </span>
+            </button>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  /**
+   * Scenario cards, and — once one is picked — the factions the player may
+   * take. A scenario without a chosen faction is not playable, so the
+   * faction grid appears immediately below.
+   */
+  private renderScenarioPicker(config: {
+    selected: ScenarioId | null;
+    faction: string | null;
+    flags?: Record<string, string>;
+  }) {
+    const scenario =
+      config.selected === null ? null : SCENARIOS[config.selected];
+    return html`
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <button
+          class="${cardClass(config.selected === null, "p-4 text-left")}"
+          @click=${() => this.handleScenarioSelect(null)}
+        >
+          <span
+            class="block text-sm font-bold text-white uppercase tracking-widest"
+          >
+            ${translateText("scenario.none")}
+          </span>
+          <span class="block text-xs text-white/70 mt-1">
+            ${translateText("scenario.none_desc")}
+          </span>
+        </button>
+        ${SCENARIO_ORDER.map((id) => {
+          const isSelected = config.selected === id;
+          return html`
+            <button
+              class="${cardClass(isSelected, "p-4 text-left")}"
+              @click=${() => this.handleScenarioSelect(id)}
+            >
+              <span
+                class="block text-sm font-bold text-white uppercase tracking-widest"
+              >
+                ${translateText(`scenario.${id}.name`)}
+              </span>
+              <span class="block text-xs text-white/70 mt-1">
+                ${translateText(`scenario.${id}.desc`)}
+              </span>
+            </button>
+          `;
+        })}
+      </div>
+      ${scenario === null
+        ? nothing
+        : html`
+            <div class="mt-4">
+              <h4
+                class="text-xs uppercase font-bold tracking-wider text-white/60 mb-2"
+              >
+                ${translateText("scenario.pick_faction")}
+              </h4>
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                ${playableFactions(scenario).map((faction) => {
+                  const isSelected = config.faction === faction.key;
+                  // A historical power flies the flag of the modern nation
+                  // whose ground it stands on, unless it names its own.
+                  const flag = faction.flag ?? config.flags?.[faction.key];
+                  return html`
+                    <button
+                      class="${cardClass(
+                        isSelected,
+                        "p-2 flex items-center gap-2 text-left",
+                      )}"
+                      @click=${() => this.handleFactionSelect(faction.key)}
+                    >
+                      ${flag === undefined
+                        ? nothing
+                        : html`<img
+                            src=${assetUrl(`flags/${flag}.svg`)}
+                            alt=""
+                            width="20"
+                            height="14"
+                            class="shrink-0 rounded-xs"
+                          />`}
+                      <span class="min-w-0">
+                        <span
+                          class="block text-xs font-bold text-white truncate"
+                          >${faction.name}</span
+                        >
+                        <span class="block text-[0.65rem] text-white/60"
+                          >${translateText(
+                            `ideology.${faction.ideology.toLowerCase()}.name`,
+                          )}</span
+                        >
+                      </span>
+                    </button>
+                  `;
+                })}
+              </div>
+            </div>
+          `}
+    `;
+  }
+
   render() {
     if (!this.settings) return nothing;
     const settings = this.settings;
@@ -498,6 +670,24 @@ export class GameConfigSettings extends LitElement {
             </div>
           `,
         )}
+        ${settings.scenario === undefined
+          ? nothing
+          : renderSection(
+              SCENARIO_ICON,
+              "text-amber-400",
+              "bg-amber-500/20",
+              "game_settings.scenario",
+              this.renderScenarioPicker(settings.scenario),
+            )}
+        ${settings.ideology === undefined
+          ? nothing
+          : renderSection(
+              IDEOLOGY_ICON,
+              "text-fuchsia-400",
+              "bg-fuchsia-500/20",
+              "game_settings.ideology",
+              this.renderIdeologyPicker(settings.ideology),
+            )}
         ${renderSection(
           MODE_ICON,
           "text-purple-400",

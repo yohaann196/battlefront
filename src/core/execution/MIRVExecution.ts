@@ -18,6 +18,7 @@ import { PseudoRandom } from "../PseudoRandom";
 import { simpleHash } from "../Util";
 import { DistanceBasedBezierCurve } from "../utilities/Line";
 import { NukeExecution } from "./NukeExecution";
+import { applyNukeLaunchPenalty } from "./Util";
 
 export class MirvExecution implements Execution {
   private active = true;
@@ -97,6 +98,9 @@ export class MirvExecution implements Execution {
           this.player.updateRelation(this.targetPlayer, -100);
         }
       }
+      // A MIRV is the loudest thing a player can do; the world reacts the
+      // same way it does to any launch (see applyNukeLaunchPenalty).
+      applyNukeLaunchPenalty(this.mg, this.player);
       const x = Math.floor((this.baseX + this.mg.x(this.nuke.tile())) / 2);
       const y = Math.max(0, this.baseY - 500) + 50;
       this.separateDst = this.mg.ref(x, y);

@@ -244,6 +244,11 @@ export class LangSelector extends LitElement {
 
   private applyTranslation() {
     const components = [
+      "battlefront-home",
+      "battlefront-nav",
+      "page-footer",
+      "government-panel",
+      "game-config-settings",
       "single-player-modal",
       "host-lobby-modal",
       "map-picker",
