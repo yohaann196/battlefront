@@ -1,4 +1,4 @@
-# Battlefront
+# Battlefront [WIP]
 
 A singleplayer real-time strategy game about running a nation, not just
 painting a map. Pick a theatre, take command of a historical power, choose the
